@@ -1,0 +1,81 @@
+
+PROGRAM sumaMatricesDinamicamente
+
+# Global variables declaration
+DIM rowsMat1 AS WORD
+DIM colsMat1 AS WORD
+DIM rowsMat2 AS WORD
+DIM colsMat2 AS WORD
+
+DIM unused_array AS FLOAT [2]
+
+DIM canSumMatrices AS WORD
+
+DIM rowPointer AS WORD
+DIM colPointer AS WORD
+
+DIM newElementMatrix1 AS WORD
+DIM newElementMatrix2 AS WORD
+DIM summedElement AS WORD
+
+
+# Ask for the dimensions of matrix#1 and matrix#2
+SUB PROCEDURE readMatricesDimensions
+  rowsMat1 = INPUT("Indicate the number of rows of the Matrix #1")
+  colsMat1 = INPUT('Indicate the number of columns of the Matrix #1')
+  LET rowsMat2 = INPUT("Indicate the number of rows of the Matrix #2")
+  LET colsMat2 = INPUT("Indicate the number of columns of the Matrix #2")
+RETURN
+
+
+# It reads every element of the 2 matrices element by element
+# After reading an element of 2 matrices, the elements are summed
+# The result is printed following this format:
+#   [
+#     [ 2.1, 3, 4],
+#     [ 4, 5.5, 7.3]
+#   ]
+SUB PROCEDURE sumMatrices
+  # Init row and col pointers
+  # Move pointers to access every element of the matrices
+  PRINT("[")
+  FOR rowPointer=0 TO rowsMat1 [1]
+    PRINT("\t[ ")
+    FOR colPointer=0 TO colsMat1
+      newElementMatrix1 = INPUT("Indicate the element [", rowPointer, ",", colPointer, "] of the Matrix #1")
+      newElementMatrix2 = INPUT("Indicate the element [", rowPointer, ",", colPointer, "] of the Matrix #2")
+      summedElement = (newElementMatrix1 + newElementMatrix2)
+      IF (colPointer == (colsMat1 - 1)) THEN
+        PRINT(summedElement)
+      ELSE
+        PRINT(summedElement, ", ")
+      END IF
+    NEXT colPointer
+    IF (rowPointer == (rowsMat1 - 1)) THEN
+      PRINT("]")
+    ELSE
+      PRINT("],")
+    END IF  
+  NEXT rowPointer
+  PRINT("]")
+RETURN
+
+
+MAIN:
+  # Clear console
+  CLS
+  LET canSumMatrices = 0
+  unused_array [0] = 9.9
+  unused_array [1] = 2.0
+  # Main code
+  DO
+    GOSUB readMatricesDimensions
+    IF ((rowsMat1 == rowsMat2) AND (colsMat1 == colsMat2)) THEN
+      canSumMatrices = 1
+      GOSUB sumMatrices
+    ELSE
+      PRINT('Can not sum matrices with such dimensions, please provide valid dimensions')
+    END IF
+  LOOP UNTIL (canSumMatrices == 1)
+
+END.

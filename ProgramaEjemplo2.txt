@@ -1,0 +1,29 @@
+
+PROGRAM paresONones_Aritmetica
+
+# Global variables declaration
+DIM COUNTER AS WORD
+DIM _LIMIT AS WORD
+DIM AUX AS FLOAT
+
+
+MAIN:
+  # Clear console
+  CLS
+  LET COUNTER = 0
+  _LIMIT = 10
+  AUX = 1.0
+
+  # Main code
+  DO
+    # PAIR
+    IF (COUNTER MOD 2 == (0)) THEN
+      AUX = AUX * 3.2
+    # PAIR
+    ELSE
+      AUX = AUX / 3.1
+    END IF
+    COUNTER = COUNTER + 1
+  LOOP UNTIL (COUNTER <= _LIMIT)
+
+END .
