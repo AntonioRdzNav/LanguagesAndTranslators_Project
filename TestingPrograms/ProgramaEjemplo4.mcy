@@ -1,0 +1,15 @@
+
+# NOTE: CORRECT SYNTAX
+
+PROGRAM paresONones_Aritmetica
+
+# Global variables declaration
+DIM COUNTER AS WORD
+DIM MIN_LIMIT, MAX_LIMIT AS WORD
+DIM AUX AS FLOAT
+DIM RESULT AS FLOAT
+
+
+MAIN:
+
+END .

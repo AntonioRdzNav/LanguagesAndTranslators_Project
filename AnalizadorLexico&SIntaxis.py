@@ -1,18 +1,23 @@
 
-import ply.lex as lex
-import ply.yacc as yacc
-import sys
-
-import ctypes
-
-from tokens import tokens
-from reserved_words import reserved_words
-
 # lex = Tokenizer
 # Breaks input text into a collection of specified tokens (using RegEx)
 
 # yacc = Language syntax parser
 # Recognize language syntax in the form of a context free grammar
+
+import ply.lex as lex
+import ply.yacc as yacc
+import sys
+import re
+import ctypes
+
+from SymbolsTableStructure import SymbolsTableStructure
+from tokens import tokens
+from reserved_words import reserved_words
+
+
+symbolsTable = {}
+symbolsTableIndex = 0
 
 ################################################################
 ############################ LEXER #############################
@@ -74,7 +79,6 @@ def t_ID(t):
     # It is only an 'ID' when it is not part of the 
     # existing reserved words.
     if t.value in reserved_words:
-        print (t.value)
         t.type = reserved_words[ t.value ]
     else:  
         t.type = 'ID'
@@ -111,11 +115,21 @@ def p_VARIABLES_DECLARATION(p):
 	  VARIABLES_DECLARATION : DIM IDS_SEQUENCE AS VARIABLE_TYPE VARIABLES_DECLARATION
     |
 	'''
+	if (len(p) > 1):
+		for variableName in p[2]:
+			addSymbolToTable(variableName, p[4])
 def p_IDS_SEQUENCE(p):
 	'''
 	  IDS_SEQUENCE : ID COMMA IDS_SEQUENCE
     | ID
-	'''  
+	'''
+	# Only one ID
+	if (len(p) == 2):
+		p[0] = [p[1]]
+	# Multiple ID's separated by commas
+	else:
+		# Concatenate current ID array with next IDS_SEQUENCE array (recursion)
+		p[0] = [p[1]] + p[len(p)-1]
 def p_VARIABLE_TYPE(p):
 	'''
 	  VARIABLE_TYPE : WORD
@@ -123,6 +137,14 @@ def p_VARIABLE_TYPE(p):
     | FLOAT
     | FLOAT DIMENSIONAL_VAR_DECLARATION
 	'''
+	# Simple type
+	if(len(p) < 3):
+		# VARIABLE_TYPE = WORD | FLOAT
+		p[0] = p[1]
+	# Dimensional type
+	else:
+		# TODO: define logic for dimensional types    
+		print(p[2])
 def p_DIMENSIONAL_VAR_DECLARATION(p):
 	'''
 	  DIMENSIONAL_VAR_DECLARATION : OPEN_BRACKET SIMPLE_VALUE CLOSE_BRACKET
@@ -301,16 +323,38 @@ def p_error(p):
 # Build the parser
 parser = yacc.yacc()
 
+def addSymbolToTable(variableId, variableType):
+  # Specify that variable is global to avoid conflict
+  global symbolsTableIndex
+  if(variableId in symbolsTable):
+    raise Exception('Variable \'' + variableId + '\' already declared...')
+  # Add variable_
+  else:
+    symbolsTable[variableId] = SymbolsTableStructure(variableId, variableType, symbolsTableIndex)
+    symbolsTableIndex += 1
+
+def printSymbolsTable():
+  print("\nSymbols Table:")
+  print("{:<15} {:<10} {:<6}".format('ID','TYPE','ADDRESS'))
+  for symbolObject in symbolsTable.values():
+    attrs = vars(symbolObject)
+    print("{:<15} {:<10} {:<6}".format(attrs['id'], attrs['type'], attrs['address']))  
+
 
 # Receive file name from parameter when executing program from terminal
 #   - Read text from the user until EOFError (line break)
 #   - Parse text afterwards
 if (len(sys.argv) > 1):
   program_name = sys.argv[1]
-  program_file = open(program_name, "r")
+  # Make sure file has correct extension (.mcy)
+  if(re.search(r'.*\.mcy$', program_name) == None):
+    raise Exception('File extension must be \'.mcy\ ...')
+  program_file = open("TestingPrograms/" + program_name, "r")
   # Format file to properly read text as string
   program = program_file.read().replace('\\n', '\n')
   parser.parse(program)
   program_file.close()
+
+  printSymbolsTable()
 else:
-    raise Exception('Please type the name of the test file')
+    raise Exception('Please type the name of the test file...')
