@@ -1,7 +1,7 @@
 
 # NOTE: HAS SYNTAX ERROR: when declaring 1_LIMIT 
 
-PROGRAM paresONones_Aritmetica
+PROGRAM paresONones_Aritmetica_ERROR
 
 # Global variables declaration
 DIM COUNTER AS WORD

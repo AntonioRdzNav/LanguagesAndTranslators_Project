@@ -1,7 +1,7 @@
 
 # NOTE: HAS SYNTAX ERROR: declared variables with same names
 
-PROGRAM paresONones_Aritmetica
+PROGRAM SymbolsTable_TEST_ERROR
 
 # Global variables declaration
 DIM COUNTER AS WORD
