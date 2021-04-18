@@ -339,7 +339,6 @@ def printSymbolsTable():
   print("{:<15} {:<10} {:<6}".format('ID','TYPE','ADDRESS'))
   for symbolObject in symbolsTable.values():
     attrs = vars(symbolObject)
-    print(attrs)
     print("{:<15} {:<10} {:<6}".format(attrs['id'], attrs['type'], attrs['address']))  
 
 
