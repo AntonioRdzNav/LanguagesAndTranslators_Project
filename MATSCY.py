@@ -144,7 +144,7 @@ def p_VARIABLE_TYPE(p):
 	# Dimensional type
 	else:
 		# TODO: define logic for dimensional types    
-		print(p[2])
+		p[0] = p[1] + ' DIMENSIONAL'
 def p_DIMENSIONAL_VAR_DECLARATION(p):
 	'''
 	  DIMENSIONAL_VAR_DECLARATION : OPEN_BRACKET SIMPLE_VALUE CLOSE_BRACKET
@@ -323,12 +323,13 @@ def p_error(p):
 # Build the parser
 parser = yacc.yacc()
 
+
 def addSymbolToTable(variableId, variableType):
   # Specify that variable is global to avoid conflict
   global symbolsTableIndex
   if(variableId in symbolsTable):
     raise Exception('Variable \'' + variableId + '\' already declared...')
-  # Add variable_
+  # Fill table with new variable information
   else:
     symbolsTable[variableId] = SymbolsTableStructure(variableId, variableType, symbolsTableIndex)
     symbolsTableIndex += 1
@@ -338,6 +339,7 @@ def printSymbolsTable():
   print("{:<15} {:<10} {:<6}".format('ID','TYPE','ADDRESS'))
   for symbolObject in symbolsTable.values():
     attrs = vars(symbolObject)
+    print(attrs)
     print("{:<15} {:<10} {:<6}".format(attrs['id'], attrs['type'], attrs['address']))  
 
 
