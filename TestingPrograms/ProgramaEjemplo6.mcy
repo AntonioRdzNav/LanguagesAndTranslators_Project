@@ -1,0 +1,14 @@
+
+# NOTE: CORRECT SYNTAX
+
+PROGRAM ArithmeticQuadruplet_TEST_CORRECT
+
+# Global variables declaration
+DIM a, b, c, d, e, f, g, h AS WORD
+
+
+MAIN:
+
+  a = a+b+ c*(d+e*(e + g + h)+ b) + a*b*c
+
+END .

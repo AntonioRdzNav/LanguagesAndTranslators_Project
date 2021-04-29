@@ -12,12 +12,19 @@ import re
 import ctypes
 
 from SymbolsTableStructure import SymbolsTableStructure
+from QuadrupletStructure import QuadrupletStructure
 from tokens import tokens
 from reserved_words import reserved_words
 
-
+# Symbols table
 symbolsTable = {}
 symbolsTableIndex = 0
+# Quadruplets
+quadruplets = []
+operandsStack = []
+operandsTypeStack = []
+temporalVariablesIndex = 0
+
 
 ################################################################
 ############################ LEXER #############################
@@ -171,9 +178,9 @@ def p_JUMPERS(p):
 
 def p_VARIABLE_ASSIGNATION(p):
 	'''
-	  VARIABLE_ASSIGNATION : ID EQUALS ARITHMETIC_EXPRESSION
+	  VARIABLE_ASSIGNATION : ID EQUALS ARITHMETIC_EXPRESSION ACTION_GENERATE_QUADRUPLET_STORE
     | ID DIMENSIONAL_VAR_INDEX EQUALS ARITHMETIC_EXPRESSION
-    | LET ID EQUALS ARITHMETIC_EXPRESSION
+    | LET ID EQUALS ARITHMETIC_EXPRESSION ACTION_GENERATE_QUADRUPLET_STORE
     | LET ID DIMENSIONAL_VAR_INDEX EQUALS ARITHMETIC_EXPRESSION
 	'''
 
@@ -245,14 +252,14 @@ def p_STATEMENTS(p):
 # cte
 def p_SIMPLE_VALUE(p):
   '''
-    SIMPLE_VALUE : WORD_VALUE
-    | FLOAT_VALUE
+    SIMPLE_VALUE : WORD_VALUE ACTION_WORD_VALUE
+    | FLOAT_VALUE ACTION_FLOAT_VALUE
   '''
 # SIMPLE_VALUE, ARITHMETIC_EXPRESSION, ID, arrays, matrices, cubes
 def p_ANY_VALUE(p):
   '''
     ANY_VALUE : SIMPLE_VALUE
-    | ID
+    | ID ACTION_VARIABLE_VALUE
     | ID OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET
     | ID OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET
     | ID OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET
@@ -262,21 +269,21 @@ def p_ANY_VALUE(p):
 def p_ARITHMETIC_EXPRESSION(p):
 	'''
 	  ARITHMETIC_EXPRESSION : ARITHMETIC_EXPRESSION_P1
-    | ARITHMETIC_EXPRESSION PLUS ARITHMETIC_EXPRESSION_P1
-    | ARITHMETIC_EXPRESSION MINUS ARITHMETIC_EXPRESSION_P1
+    | ARITHMETIC_EXPRESSION PLUS ARITHMETIC_EXPRESSION_P1 ACTION_GENERATE_QUADRUPLET
+    | ARITHMETIC_EXPRESSION MINUS ARITHMETIC_EXPRESSION_P1 ACTION_GENERATE_QUADRUPLET
 	'''   
 def p_ARITHMETIC_EXPRESSION_P1(p):
 	'''
 	  ARITHMETIC_EXPRESSION_P1 : ARITHMETIC_EXPRESSION_P2
-    | ARITHMETIC_EXPRESSION_P1 MULTIPLY ARITHMETIC_EXPRESSION_P2
-    | ARITHMETIC_EXPRESSION_P1 DIVIDE_FLOATING_POINT ARITHMETIC_EXPRESSION_P2
-    | ARITHMETIC_EXPRESSION_P1 MOD ARITHMETIC_EXPRESSION_P2
-    | ARITHMETIC_EXPRESSION_P1 DIVIDE_ROUND_DOWN ARITHMETIC_EXPRESSION_P2
+    | ARITHMETIC_EXPRESSION_P1 MULTIPLY ARITHMETIC_EXPRESSION_P2 ACTION_GENERATE_QUADRUPLET
+    | ARITHMETIC_EXPRESSION_P1 DIVIDE_FLOATING_POINT ARITHMETIC_EXPRESSION_P2 ACTION_GENERATE_QUADRUPLET
+    | ARITHMETIC_EXPRESSION_P1 MOD ARITHMETIC_EXPRESSION_P2 ACTION_GENERATE_QUADRUPLET
+    | ARITHMETIC_EXPRESSION_P1 DIVIDE_ROUND_DOWN ARITHMETIC_EXPRESSION_P2 ACTION_GENERATE_QUADRUPLET
 	'''  
 def p_ARITHMETIC_EXPRESSION_P2(p):
 	'''
 	  ARITHMETIC_EXPRESSION_P2 : ARITHMETIC_EXPRESSION_P3
-    | ARITHMETIC_EXPRESSION_P2 POWER_BY ARITHMETIC_EXPRESSION_P3
+    | ARITHMETIC_EXPRESSION_P2 POWER_BY ARITHMETIC_EXPRESSION_P3 ACTION_GENERATE_QUADRUPLET
 	'''  
 def p_ARITHMETIC_EXPRESSION_P3(p):
 	'''
@@ -288,22 +295,22 @@ def p_ARITHMETIC_EXPRESSION_P3(p):
 def p_LOGICAL_EXPRESSION(p):
 	'''
 	  LOGICAL_EXPRESSION : LOGICAL_EXPRESSION_P1
-    | LOGICAL_EXPRESSION OR LOGICAL_EXPRESSION_P1
+    | LOGICAL_EXPRESSION OR LOGICAL_EXPRESSION_P1 ACTION_GENERATE_QUADRUPLET
 	'''      
 def p_LOGICAL_EXPRESSION_P1(p):
 	'''
 	  LOGICAL_EXPRESSION_P1 : LOGICAL_EXPRESSION_P2
-    | LOGICAL_EXPRESSION_P1 AND LOGICAL_EXPRESSION_P2
+    | LOGICAL_EXPRESSION_P1 AND LOGICAL_EXPRESSION_P2 ACTION_GENERATE_QUADRUPLET
 	'''  
 def p_LOGICAL_EXPRESSION_P2(p):
 	'''
 	  LOGICAL_EXPRESSION_P2 : LOGICAL_EXPRESSION_P3
-    | NOT LOGICAL_EXPRESSION_P3
+    | NOT LOGICAL_EXPRESSION_P3 ACTION_GENERATE_QUADRUPLET
 	'''  
 def p_LOGICAL_EXPRESSION_P3(p):
 	'''
 	  LOGICAL_EXPRESSION_P3 : OPEN_PARENTHESIS LOGICAL_EXPRESSION CLOSE_PARENTHESIS
-    | ARITHMETIC_EXPRESSION RELATIONAL_OPERATOR ARITHMETIC_EXPRESSION
+    | ARITHMETIC_EXPRESSION RELATIONAL_OPERATOR ARITHMETIC_EXPRESSION ACTION_GENERATE_QUADRUPLET
     
 	'''  
 def p_RELATIONAL_OPERATOR(p):
@@ -314,15 +321,119 @@ def p_RELATIONAL_OPERATOR(p):
     | GREATER_THAN
     | LESS_OR_EQUAL_THAN
     | GREATER_OR_EQUAL_THAN
-	'''    
+	'''
+	p[0] = p[1]
 
 # Error rule for syntax errors  
 def p_error(p):
 	print("\tSyntax error...", p)
 
+
+# ACTIONS
+# NOTE: P array indexes are negative because action is placed at the end of production
+
+def p_ACTION_WORD_VALUE(p):
+  '''
+    ACTION_WORD_VALUE :
+  '''   
+  operandsStack.append(p[-1])
+  operandsTypeStack.append('WORD')
+
+def p_ACTION_FLOAT_VALUE(p):
+  '''
+    ACTION_FLOAT_VALUE :
+  '''   
+  operandsStack.append(p[-1])
+  operandsTypeStack.append('FLOAT')
+
+def p_ACTION_VARIABLE_VALUE(p):
+  '''
+    ACTION_VARIABLE_VALUE :
+  '''   
+  operandsStack.append(symbolsTable[p[-1]].id)
+  operandsTypeStack.append(symbolsTable[p[-1]].type)
+
+def p_ACTION_GENERATE_QUADRUPLET_STORE(p):
+  '''
+    ACTION_GENERATE_QUADRUPLET_STORE :
+  '''
+  # Variable where result will be STORED is placed one 
+  # space before the top of the stack (because variable
+  # should be placed on the OPERAND_LEFT position, while the 
+  # stored value should be placed on the OPERAND_RIGHT position)
+  operandsStack.insert(-1, symbolsTable[p[-3]].id)
+  operandsTypeStack.insert(-1, symbolsTable[p[-3]].type)
+  generateQuadruplet("=")
+  # Clear any remaining operand, because STORING is always 
+  # the last action of a quadrup
+  clearOperandsStack()
+
+def p_ACTION_GENERATE_QUADRUPLET(p):
+  '''
+    ACTION_GENERATE_QUADRUPLET :
+  '''
+  operator = p[-2]
+  if (operator == 'NOT'):
+    generateQuadruplet__Not()
+  else:
+    generateQuadruplet(operator)
+  
+
 # Build the parser
 parser = yacc.yacc()
 
+def generateQuadruplet(operator):
+  global temporalVariablesIndex
+  # Get operands data
+  operandRight = operandsStack.pop()
+  operandLeft = operandsStack.pop()
+  operandTypeRight = operandsTypeStack.pop()
+  operandTypeLeft = operandsTypeStack.pop()
+  if (operandTypeRight != operandTypeLeft):
+    raise Exception('Attempted to make an operation with variables of different type...')
+  if (operator == '='):
+    # Generate STORE quadruplet
+    quadruplets.append(QuadrupletStructure(operator, operandLeft, operandRight, None))
+  else:
+    # Save space for temporal variable in symbols table
+    # NOTE: The character '#' at the beginning ensures that no
+    # variableId will be named equal to this one.
+    # NOTE: the resulting temporal variable has the same 
+    # type as the operators
+    tempName = '#temp_' + str(temporalVariablesIndex)
+    addSymbolToTable(tempName, operandTypeLeft)
+    temporalVariablesIndex += 1
+    # Add temp data to stacks
+    operandsStack.append(tempName)
+    operandsTypeStack.append(operandTypeLeft)
+    # Generate quadruplet
+    quadruplets.append(QuadrupletStructure(operator, operandLeft, operandRight, tempName))  
+
+# A separate function for the NOT operator is needed because 
+# it is the only expression that handles one operand only.
+def generateQuadruplet__Not():
+  global temporalVariablesIndex
+  operand = operandsStack.pop()
+  operandType = operandsTypeStack.pop()
+  tempName = '#temp_' + str(temporalVariablesIndex)
+  addSymbolToTable(tempName, operandType)
+  temporalVariablesIndex += 1
+  # add temp data to stacks
+  operandsStack.append(tempName)
+  operandsTypeStack.append(operandType)
+  quadruplets.append(QuadrupletStructure('NOT', operand, None, tempName))  
+
+def clearOperandsStack():
+  operandsStack.clear()
+  operandsTypeStack.clear()
+
+def printQuadruplets():
+  print("\nQuadruplets:")
+  print("{:<10} {:<15} {:<15} {:<5}".format('OPERATOR','OPERAND_LEFT','OPERAND_RIGHT','RESULT'))  
+  for quadObject in quadruplets:
+    attrs = vars(quadObject)
+    print("{:<10} {:<15} {:<15} {:<5}".format(str(attrs['operator']), str(attrs['operandLeft']), str(attrs['operandRight']), str(attrs['result'])))  
+  print("\n")    
 
 def addSymbolToTable(variableId, variableType):
   # Specify that variable is global to avoid conflict
@@ -330,16 +441,16 @@ def addSymbolToTable(variableId, variableType):
   if(variableId in symbolsTable):
     raise Exception('Variable \'' + variableId + '\' already declared...')
   # Fill table with new variable information
-  else:
-    symbolsTable[variableId] = SymbolsTableStructure(variableId, variableType, symbolsTableIndex)
-    symbolsTableIndex += 1
+  symbolsTable[variableId] = SymbolsTableStructure(variableId, variableType, symbolsTableIndex)
+  symbolsTableIndex += 1
 
 def printSymbolsTable():
   print("\nSymbols Table:")
   print("{:<15} {:<10} {:<6}".format('ID','TYPE','ADDRESS'))
   for symbolObject in symbolsTable.values():
     attrs = vars(symbolObject)
-    print("{:<15} {:<10} {:<6}".format(attrs['id'], attrs['type'], attrs['address']))  
+    print("{:<15} {:<10} {:<6}".format(str(attrs['id']), str(attrs['type']), str(attrs['address'])))  
+  print("\n")
 
 
 # Receive file name from parameter when executing program from terminal
@@ -357,5 +468,6 @@ if (len(sys.argv) > 1):
   program_file.close()
 
   printSymbolsTable()
+  printQuadruplets()
 else:
     raise Exception('Please type the name of the test file...')
