@@ -310,7 +310,7 @@ def p_LOGICAL_EXPRESSION_P2(p):
 def p_LOGICAL_EXPRESSION_P3(p):
 	'''
 	  LOGICAL_EXPRESSION_P3 : OPEN_PARENTHESIS LOGICAL_EXPRESSION CLOSE_PARENTHESIS
-    | ARITHMETIC_EXPRESSION RELATIONAL_OPERATOR ARITHMETIC_EXPRESSION ACTION_GENERATE_QUADRUPLET
+    | ARITHMETIC_EXPRESSION RELATIONAL_OPERATOR ARITHMETIC_EXPRESSION ACTION_GENERATE_QUADRUPLET_LOGICAL
     
 	'''  
 def p_RELATIONAL_OPERATOR(p):
@@ -357,12 +357,8 @@ def p_ACTION_GENERATE_QUADRUPLET_STORE(p):
   '''
     ACTION_GENERATE_QUADRUPLET_STORE :
   '''
-  # Variable where result will be STORED is placed one 
-  # space before the top of the stack (because variable
-  # should be placed on the OPERAND_LEFT position, while the 
-  # stored value should be placed on the OPERAND_RIGHT position)
-  operandsStack.insert(-1, symbolsTable[p[-3]].id)
-  operandsTypeStack.insert(-1, symbolsTable[p[-3]].type)
+  operandsStack.append(symbolsTable[p[-3]].id)
+  operandsTypeStack.append(symbolsTable[p[-3]].type)
   generateQuadruplet("=")
   # Clear any remaining operand, because STORING is always 
   # the last action of a quadrup
@@ -377,12 +373,19 @@ def p_ACTION_GENERATE_QUADRUPLET(p):
     generateQuadruplet__Not()
   else:
     generateQuadruplet(operator)
+
+def p_ACTION_GENERATE_QUADRUPLET_LOGICAL(p):
+  '''
+    ACTION_GENERATE_QUADRUPLET_LOGICAL :
+  '''
+  operator = p[-2]
+  generateQuadruplet(operator, isRelationalOperator=True)
   
 
 # Build the parser
 parser = yacc.yacc()
 
-def generateQuadruplet(operator):
+def generateQuadruplet(operator, isRelationalOperator=False):
   global temporalVariablesIndex
   # Get operands data
   operandRight = operandsStack.pop()
@@ -400,12 +403,13 @@ def generateQuadruplet(operator):
     # variableId will be named equal to this one.
     # NOTE: the resulting temporal variable has the same 
     # type as the operators
+    resultType = 'BOOLEAN' if isRelationalOperator else operandTypeLeft
     tempName = '#temp_' + str(temporalVariablesIndex)
-    addSymbolToTable(tempName, operandTypeLeft)
+    addSymbolToTable(tempName, resultType)
     temporalVariablesIndex += 1
     # Add temp data to stacks
     operandsStack.append(tempName)
-    operandsTypeStack.append(operandTypeLeft)
+    operandsTypeStack.append(resultType)
     # Generate quadruplet
     quadruplets.append(QuadrupletStructure(operator, operandLeft, operandRight, tempName))  
 
