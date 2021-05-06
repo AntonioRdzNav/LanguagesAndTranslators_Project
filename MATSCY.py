@@ -360,9 +360,6 @@ def p_ACTION_GENERATE_QUADRUPLET_STORE(p):
   operandsStack.append(symbolsTable[p[-3]].id)
   operandsTypeStack.append(symbolsTable[p[-3]].type)
   generateQuadruplet("=")
-  # Clear any remaining operand, because STORING is always 
-  # the last action of a quadrup
-  clearOperandsStack()
 
 def p_ACTION_GENERATE_QUADRUPLET(p):
   '''
@@ -426,10 +423,6 @@ def generateQuadruplet__Not():
   operandsStack.append(tempName)
   operandsTypeStack.append(operandType)
   quadruplets.append(QuadrupletStructure('NOT', operand, None, tempName))  
-
-def clearOperandsStack():
-  operandsStack.clear()
-  operandsTypeStack.clear()
 
 def printQuadruplets():
   print("\nQuadruplets:")
