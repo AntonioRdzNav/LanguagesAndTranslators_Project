@@ -234,7 +234,7 @@ def p_DO_STATEMENT(p):
 
 def p_FOR_STATEMENT(p):
 	'''
-	  FOR_STATEMENT : FOR ID EQUALS ARITHMETIC_EXPRESSION ACTION_GENERATE_QUADRUPLET_STORE ACTION_FOR_COUNTER_VALUE TO ARITHMETIC_EXPRESSION ACTION_QUADRUPLET_FOR_CONDITION ACTION_QUADRUPLET_EMPTY_GOTOF STATEMENTS NEXT ID ACTION_WHILE_GOTO
+	  FOR_STATEMENT : FOR ID EQUALS ARITHMETIC_EXPRESSION ACTION_GENERATE_QUADRUPLET_STORE ACTION_FOR_COUNTER_VALUE TO ARITHMETIC_EXPRESSION ACTION_QUADRUPLET_FOR_CONDITION ACTION_QUADRUPLET_EMPTY_GOTOF STATEMENTS NEXT ID ACTION_FOR_INCREMENT ACTION_WHILE_GOTO
 	'''
 
 def p_STATEMENTS(p):
@@ -561,6 +561,27 @@ def p_ACTION_QUADRUPLET_FOR_CONDITION(p):
   jumpsStack.append(quadrupletsIndex)  
   # Generate '<=' quadruplet
   generateQuadruplet("<=")
+
+def p_ACTION_FOR_INCREMENT(p):
+  '''
+    ACTION_FOR_INCREMENT :
+  '''
+  counterId = p[-1]
+  # Generate quadruplet to increment counter-variable by 1
+  # NOTE: the value 1 must have the type of the counter-variable
+  operandsStack.append(symbolsTable[counterId].id)
+  operandsTypeStack.append(symbolsTable[counterId].type)
+  if(symbolsTable[counterId].type == 'WORD'):
+    operandsStack.append(ctypes.c_uint16(int(1)))
+    operandsTypeStack.append('WORD')
+  else:
+    operandsStack.append(float(1))
+    operandsTypeStack.append('FLOAT')    
+  generateQuadruplet("+")
+  # Generate quadruplet to store incremented counter to itself
+  operandsStack.append(symbolsTable[counterId].id)
+  operandsTypeStack.append(symbolsTable[counterId].type)  
+  generateQuadruplet("=")
 
 # Build the parser
 parser = yacc.yacc()

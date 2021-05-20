@@ -10,12 +10,8 @@ DIM a, i AS WORD
 MAIN:
 
   FOR i = 0 TO 5
-    a = a + 1
+    a = a + 2
   NEXT i
-
-#  FOR i = 0 TO 5 [1]
-#    a = a + 1
-#  NEXT i  
 
 
 END .
