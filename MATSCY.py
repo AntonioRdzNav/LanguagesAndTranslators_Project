@@ -21,9 +21,13 @@ symbolsTable = {}
 symbolsTableIndex = 0
 # Quadruplets
 quadruplets = []
+quadrupletsIndex = 0
 operandsStack = []
 operandsTypeStack = []
 temporalVariablesIndex = 0
+# Ifs
+jumpsStack = []
+ifsStack = []
 
 
 ################################################################
@@ -94,7 +98,7 @@ def t_ID(t):
 # Error handling rule
 def t_error(t):
   # Show which character was invalid
-	print("Invalid characters: '%s'" % t.value[0])
+	raise Exception("Invalid characters: '%s'" % t.value[0])
   # Skip token
   # Unrecognized tokens are saved as different characters
 	t.lexer.skip(1)
@@ -208,13 +212,13 @@ def p_STRINGS_SEQUENCE(p):
 
 def p_IF_STATEMENT(p):
 	'''
-	  IF_STATEMENT : IF LOGICAL_EXPRESSION THEN STATEMENTS ELSE_STATEMENT END IF
+	  IF_STATEMENT : IF LOGICAL_EXPRESSION THEN ACTION_NEW_IF ACTION_QUADRUPLET_EMPTY_GOTOF STATEMENTS ELSE_STATEMENT END IF ACTION_FILL_GOTO
 	'''
 def p_ELSE_STATEMENT(p):
 	'''
-	  ELSE_STATEMENT : ELSE STATEMENTS
-    | ELSEIF LOGICAL_EXPRESSION THEN STATEMENTS ELSE_STATEMENT
-    |
+	  ELSE_STATEMENT : ELSE ACTION_QUADRUPLET_EMPTY_GOTO ACTION_FILL_GOTOF STATEMENTS
+    | ELSEIF ACTION_QUADRUPLET_EMPTY_GOTO ACTION_FILL_GOTOF LOGICAL_EXPRESSION THEN ACTION_QUADRUPLET_EMPTY_GOTOF STATEMENTS ACTION_QUADRUPLET_EMPTY_GOTO ELSE_STATEMENT
+    | ACTION_FILL_GOTOF
 	'''
 
 def p_WHILE_STATEMENT(p):
@@ -326,10 +330,11 @@ def p_RELATIONAL_OPERATOR(p):
 
 # Error rule for syntax errors  
 def p_error(p):
-	print("\tSyntax error...", p)
+	raise Exception("\tSyntax error...", p)
 
-
-# ACTIONS
+########################################
+######### ACTIONS EXPRESSIONS ##########
+########################################
 # NOTE: P array indexes are negative because action is placed at the end of production
 
 def p_ACTION_WORD_VALUE(p):
@@ -377,13 +382,11 @@ def p_ACTION_GENERATE_QUADRUPLET_LOGICAL(p):
   '''
   operator = p[-2]
   generateQuadruplet(operator, isRelationalOperator=True)
-  
 
-# Build the parser
-parser = yacc.yacc()
 
 def generateQuadruplet(operator, isRelationalOperator=False):
   global temporalVariablesIndex
+  global quadrupletsIndex  
   # Get operands data
   operandRight = operandsStack.pop()
   operandLeft = operandsStack.pop()
@@ -394,6 +397,7 @@ def generateQuadruplet(operator, isRelationalOperator=False):
   if (operator == '='):
     # Generate STORE quadruplet
     quadruplets.append(QuadrupletStructure(operator, operandLeft, operandRight, None))
+    quadrupletsIndex += 1
   else:
     # Save space for temporal variable in symbols table
     # NOTE: The character '#' at the beginning ensures that no
@@ -408,12 +412,14 @@ def generateQuadruplet(operator, isRelationalOperator=False):
     operandsStack.append(tempName)
     operandsTypeStack.append(resultType)
     # Generate quadruplet
-    quadruplets.append(QuadrupletStructure(operator, operandLeft, operandRight, tempName))  
+    quadruplets.append(QuadrupletStructure(operator, operandLeft, operandRight, tempName))
+    quadrupletsIndex += 1
 
 # A separate function for the NOT operator is needed because 
 # it is the only expression that handles one operand only.
 def generateQuadruplet__Not():
   global temporalVariablesIndex
+  global quadrupletsIndex
   operand = operandsStack.pop()
   operandType = operandsTypeStack.pop()
   tempName = '#temp_' + str(temporalVariablesIndex)
@@ -422,15 +428,84 @@ def generateQuadruplet__Not():
   # add temp data to stacks
   operandsStack.append(tempName)
   operandsTypeStack.append(operandType)
-  quadruplets.append(QuadrupletStructure('NOT', operand, None, tempName))  
+  quadruplets.append(QuadrupletStructure('NOT', operand, None, tempName))
+  quadrupletsIndex += 1
 
 def printQuadruplets():
   print("\nQuadruplets:")
-  print("{:<10} {:<15} {:<15} {:<5}".format('OPERATOR','OPERAND_LEFT','OPERAND_RIGHT','RESULT'))  
-  for quadObject in quadruplets:
+  print("{:<7} {:<10} {:<15} {:<15} {:<5}".format('INDEX','OPERATOR','OPERAND_LEFT','OPERAND_RIGHT','RESULT'))  
+  for (index, quadObject) in enumerate(quadruplets):
     attrs = vars(quadObject)
-    print("{:<10} {:<15} {:<15} {:<5}".format(str(attrs['operator']), str(attrs['operandLeft']), str(attrs['operandRight']), str(attrs['result'])))  
+    print("{:<7} {:<10} {:<15} {:<15} {:<5}".format(str(index), str(attrs['operator']), str(attrs['operandLeft']), str(attrs['operandRight']), str(attrs['result'])))  
   print("\n")    
+
+
+########################################
+######## ACTIONS IF STATEMENTS #########
+########################################
+def p_ACTION_NEW_IF(p):
+  '''
+    ACTION_NEW_IF :
+  '''
+  # Append an empty list, which will be used to keep
+  # track of nested IFs within evaluated IF-STATEMENT.
+  ifsStack.append([])
+
+def p_ACTION_QUADRUPLET_EMPTY_GOTOF(p):
+  '''
+    ACTION_QUADRUPLET_EMPTY_GOTOF :
+  '''
+  global quadrupletsIndex
+  # Logical expression quadruplet was the last quadruplet before GOTOF quadruplet
+  logicalExpressionResultId = quadruplets[-1].result
+  # Verify that the type of the last quadruplet result is indeed a BOOLEAN
+  # NOTE: (result) corresponds to the ID of the temporal variable
+  #  where the result of the expression was stored.
+  if (symbolsTable[logicalExpressionResultId].type != 'BOOLEAN'):
+    raise Exception('Expression result of an IF-STATEMENT was not a BOOLEAN type...')
+  # GOTOF quadruplet is created without specifying jumping address (operandRight)
+  quadruplets.append(QuadrupletStructure('GOTOF', logicalExpressionResultId, None, None))
+  # Add current quadruplet-index to (jumpsStack) to later fill the missing jumping-address
+  jumpsStack.append(quadrupletsIndex)
+  quadrupletsIndex += 1
+
+def p_ACTION_FILL_GOTOF(p):
+  '''
+    ACTION_FILL_GOTOF :
+  '''  
+  fillJump(jumpsStack.pop(), quadrupletsIndex)    
+
+def p_ACTION_QUADRUPLET_EMPTY_GOTO(p):
+  '''
+    ACTION_QUADRUPLET_EMPTY_GOTO :
+  '''
+  global quadrupletsIndex
+  # Append quadruplet-index to remember to fill the following 
+  # GOTO jumping address after the IF-STATEMENT finishes.
+  ifsStack[-1].append(quadrupletsIndex)
+  quadruplets.append(QuadrupletStructure('GOTO', None, None, None))
+  quadrupletsIndex += 1
+
+def p_ACTION_FILL_GOTO(p):
+  '''
+    ACTION_FILL_GOTO :
+  '''
+  # NOTE: If there was no ELSE_STATEMENT, then there will be 
+  # no need of filling any GOTO (ifsStack[-1] == [])
+  for gotofQuadrupletIndex in ifsStack[-1]:
+      fillJump(gotofQuadrupletIndex, quadrupletsIndex)
+  ifsStack.pop()
+
+def fillJump(pendingGotoQuadrupletIndex, jumpAddress):
+  # Get instance of quadruplet by list index
+  pendingQuadruplet = quadruplets[pendingGotoQuadrupletIndex]
+  # (jumpAddress) of both (GOTOF) and (GOTO) operators is
+  # stored in the (operandRight) field.
+  pendingQuadruplet.operandRight = jumpAddress
+  
+
+# Build the parser
+parser = yacc.yacc()
 
 def addSymbolToTable(variableId, variableType):
   # Specify that variable is global to avoid conflict

@@ -1,0 +1,25 @@
+
+# NOTE: CORRECT SYNTAX
+
+PROGRAM LogicalQuadruplet_TEST_CORRECT
+
+# Global variables declaration
+DIM a, b, c, d, e, f, g, h AS WORD
+
+
+MAIN:
+
+  IF a > b THEN
+    IF b < c THEN
+      a = b
+    ELSE 
+      b = c + d
+    END IF
+  ELSE
+    IF d > e THEN
+      d = f
+    END IF
+  END IF
+
+
+END .

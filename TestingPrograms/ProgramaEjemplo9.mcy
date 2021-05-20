@@ -1,0 +1,27 @@
+
+# NOTE: CORRECT SYNTAX
+
+PROGRAM LogicalQuadruplet_TEST_CORRECT
+
+# Global variables declaration
+DIM a, b, c, d, e, f, g, h AS WORD
+
+
+MAIN:
+
+  IF ((a > b) AND (b < c)) THEN 
+
+    IF ((b <c) OR (d == e)) THEN 
+      b = c + 3
+    ELSE
+      b = c - 3
+    END IF  
+
+  ELSEIF ((d == e) AND (e <= f)) THEN
+
+    a = e - d
+    
+  END IF
+
+
+END .
