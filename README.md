@@ -1,2 +1,2 @@
-# LanguagesAndTranslators_Proyect
-The proyect is to create a Programming Language similar to BASIC using PLY (Python Lex-Yacc)
+# LanguagesAndTranslators_Project
+The project consists on creating a Programming Language similar to BASIC using PLY (Python Lex-Yacc)
