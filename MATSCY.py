@@ -15,6 +15,7 @@ from SymbolsTableStructure import SymbolsTableStructure
 from QuadrupletStructure import QuadrupletStructure
 from tokens import tokens
 from reserved_words import reserved_words
+from relational_operators import relational_operators
 
 # Symbols table
 symbolsTable = {}
@@ -233,12 +234,7 @@ def p_DO_STATEMENT(p):
 
 def p_FOR_STATEMENT(p):
 	'''
-	  FOR_STATEMENT : FOR ID EQUALS ARITHMETIC_EXPRESSION TO ARITHMETIC_EXPRESSION SET_FOR_STEPS STATEMENTS NEXT ID
-	'''
-def p_SET_FOR_STEPS(p):
-	'''
-	  SET_FOR_STEPS : OPEN_BRACKET SIMPLE_VALUE CLOSE_BRACKET
-    |
+	  FOR_STATEMENT : FOR ID EQUALS ARITHMETIC_EXPRESSION ACTION_GENERATE_QUADRUPLET_STORE ACTION_FOR_COUNTER_VALUE TO ARITHMETIC_EXPRESSION ACTION_QUADRUPLET_FOR_CONDITION ACTION_QUADRUPLET_EMPTY_GOTOF STATEMENTS NEXT ID ACTION_WHILE_GOTO
 	'''
 
 def p_STATEMENTS(p):
@@ -381,10 +377,10 @@ def p_ACTION_GENERATE_QUADRUPLET_LOGICAL(p):
     ACTION_GENERATE_QUADRUPLET_LOGICAL :
   '''
   operator = p[-2]
-  generateQuadruplet(operator, isRelationalOperator=True)
+  generateQuadruplet(operator)
 
 
-def generateQuadruplet(operator, isRelationalOperator=False):
+def generateQuadruplet(operator):
   global temporalVariablesIndex
   global quadrupletsIndex  
   # Get operands data
@@ -399,12 +395,13 @@ def generateQuadruplet(operator, isRelationalOperator=False):
     quadruplets.append(QuadrupletStructure(operator, operandLeft, operandRight, None))
     quadrupletsIndex += 1
   else:
+    # If the operator is a relational-operator, then assign a 'BOOLEAN'
+    # type to the result.
+    resultType = 'BOOLEAN' if operator in relational_operators else operandTypeLeft
     # Save space for temporal variable in symbols table
     # NOTE: The character '#' at the beginning ensures that no
     # variableId will be named equal to this one.
-    # NOTE: the resulting temporal variable has the same 
-    # type as the operators
-    resultType = 'BOOLEAN' if isRelationalOperator else operandTypeLeft
+    # NOTE: the resulting temporal variable has the same type as the operators.
     tempName = '#temp_' + str(temporalVariablesIndex)
     addSymbolToTable(tempName, resultType)
     temporalVariablesIndex += 1
@@ -543,6 +540,27 @@ def p_ACTION_QUADRUPLET_EMPTY_GOTOF_DO_WHILE(p):
   jumpsStack.append(quadrupletsIndex)
   quadrupletsIndex += 1  
 
+def p_ACTION_FOR_COUNTER_VALUE(p):
+  '''
+    ACTION_FOR_COUNTER_VALUE :
+  '''   
+  # Add counter-variable id and type to corresponding stacks
+  # NOTE: it is important to place this action at this position (before the
+  # arithmetic-expression) to conserve the order of the for '<=' condition.
+  operandsStack.append(symbolsTable[p[-4]].id)
+  operandsTypeStack.append(symbolsTable[p[-4]].type)
+
+def p_ACTION_QUADRUPLET_FOR_CONDITION(p):
+  '''
+    ACTION_QUADRUPLET_FOR_CONDITION :
+  '''
+  global quadrupletsIndex
+  # Make sure to append the index of the '<=' quadruplet so that
+  # the loop jumps back at this point to verify when to stop looping.
+  # NOTE: the current (quadrupletsIndex) corresponds to the '<=' quadruplet
+  jumpsStack.append(quadrupletsIndex)  
+  # Generate '<=' quadruplet
+  generateQuadruplet("<=")
 
 # Build the parser
 parser = yacc.yacc()

@@ -1,0 +1,21 @@
+
+# NOTE: CORRECT SYNTAX
+
+PROGRAM For_TEST_CORRECT
+
+# Global variables declaration
+DIM a, i AS WORD
+
+
+MAIN:
+
+  FOR i = 0 TO 5
+    a = a + 1
+  NEXT i
+
+#  FOR i = 0 TO 5 [1]
+#    a = a + 1
+#  NEXT i  
+
+
+END .

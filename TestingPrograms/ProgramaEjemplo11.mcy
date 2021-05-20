@@ -1,7 +1,7 @@
 
 # NOTE: CORRECT SYNTAX
 
-PROGRAM LogicalQuadruplet_TEST_CORRECT
+PROGRAM DoUntil_TEST_CORRECT
 
 # Global variables declaration
 DIM a, b, c, d, e, f, g, h AS WORD
