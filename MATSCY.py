@@ -223,12 +223,12 @@ def p_ELSE_STATEMENT(p):
 
 def p_WHILE_STATEMENT(p):
 	'''
-	  WHILE_STATEMENT : WHILE LOGICAL_EXPRESSION STATEMENTS WEND
+	  WHILE_STATEMENT : WHILE ACTION_LOOP_START LOGICAL_EXPRESSION ACTION_QUADRUPLET_EMPTY_GOTOF STATEMENTS WEND ACTION_WHILE_GOTO
 	'''
 
 def p_DO_STATEMENT(p):
 	'''
-	  DO_STATEMENT : DO STATEMENTS LOOP UNTIL LOGICAL_EXPRESSION
+	  DO_STATEMENT : DO ACTION_LOOP_START STATEMENTS LOOP UNTIL LOGICAL_EXPRESSION ACTION_QUADRUPLET_EMPTY_GOTOF_DO_WHILE
 	'''
 
 def p_FOR_STATEMENT(p):
@@ -502,7 +502,47 @@ def fillJump(pendingGotoQuadrupletIndex, jumpAddress):
   # (jumpAddress) of both (GOTOF) and (GOTO) operators is
   # stored in the (operandRight) field.
   pendingQuadruplet.operandRight = jumpAddress
-  
+
+########################################
+####### ACTIONS LOOP STATEMENTS ########
+########################################  
+def p_ACTION_LOOP_START(p):
+  '''
+    ACTION_LOOP_START :
+  '''  
+  global quadrupletsIndex
+  jumpsStack.append(quadrupletsIndex)
+
+def p_ACTION_WHILE_GOTO(p):
+  '''
+    ACTION_WHILE_GOTO :
+  '''  
+  global quadrupletsIndex
+  pendingGotoQuadrupletIndex = jumpsStack.pop()
+  loopStartQuadrupletIndex = jumpsStack.pop()
+  quadruplets.append(QuadrupletStructure('GOTO', None, loopStartQuadrupletIndex, None))
+  quadrupletsIndex += 1
+  fillJump(pendingGotoQuadrupletIndex, quadrupletsIndex) 
+
+def p_ACTION_QUADRUPLET_EMPTY_GOTOF_DO_WHILE(p):
+  '''
+    ACTION_QUADRUPLET_EMPTY_GOTOF_DO_WHILE :
+  '''  
+  global quadrupletsIndex
+  # Logical expression quadruplet was the last quadruplet before GOTOF quadruplet
+  logicalExpressionResultId = quadruplets[-1].result
+  # Verify that the type of the last quadruplet result is indeed a BOOLEAN
+  # NOTE: (result) corresponds to the ID of the temporal variable
+  #  where the result of the expression was stored.
+  if (symbolsTable[logicalExpressionResultId].type != 'BOOLEAN'):
+    raise Exception('Expression result of an DO-ULTIL-STATEMENT was not a BOOLEAN type...')
+  # GOTOF quadruplet is created without specifying jumping address (operandRight)
+  loopStartQuadrupletIndex = jumpsStack.pop()
+  quadruplets.append(QuadrupletStructure('GOTOF', logicalExpressionResultId, loopStartQuadrupletIndex, None))
+  # Add current quadruplet-index to (jumpsStack) to later fill the missing jumping-address
+  jumpsStack.append(quadrupletsIndex)
+  quadrupletsIndex += 1  
+
 
 # Build the parser
 parser = yacc.yacc()
