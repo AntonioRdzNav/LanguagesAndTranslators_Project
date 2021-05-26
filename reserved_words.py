@@ -41,5 +41,4 @@ reserved_words = {
   'SUB': 'SUB',
   'PROCEDURE': 'PROCEDURE',
   'RETURN': 'RETURN',
-  'GOTOSUB': 'GOTOSUB',
 }
