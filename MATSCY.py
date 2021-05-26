@@ -26,9 +26,10 @@ quadrupletsIndex = 0
 operandsStack = []
 operandsTypeStack = []
 temporalVariablesIndex = 0
-# Ifs
 jumpsStack = []
 ifsStack = []
+subProceduresStack = []
+
 
 
 ################################################################
@@ -604,25 +605,33 @@ def p_ACTION_ADD_SUB_PROCEDURE(p):
   '''
     ACTION_ADD_SUB_PROCEDURE :
   '''  
-  global quadrupletsIndex
-  functionId = p[-1]
-  addSymbolToTable(functionId, 'SUB_PROCEDURE', quadrupletsIndex)
+  global quadrupletsIndex, subProceduresStack
+  subProcedureId = p[-1]
+  subProceduresStack.append(subProcedureId)
+  # Add subProcedureId to symbols table
+  addSymbolToTable(subProcedureId, 'SUB_PROCEDURE', quadrupletsIndex)
+  # Create GOTO quadruplet, which will point to end of function
+  quadruplets.append(QuadrupletStructure('GOTO', None, None, None))
+  quadrupletsIndex += 1
 
 def p_ACTION_END_SUB_PROCEDURE(p):
   '''
     ACTION_END_SUB_PROCEDURE :
   '''  
-  global quadrupletsIndex
+  global quadrupletsIndex, subProceduresStack
+  # Create RETURN quadruplet
   quadruplets.append(QuadrupletStructure('RETURN', None, None, None))
   quadrupletsIndex += 1
+  # Fill end of sub_procedure GOTO
+  fillJump(symbolsTable[subProceduresStack.pop()].functionIndex, quadrupletsIndex)
 
 def p_ACTION_CALL_SUB_PROCEDURE(p):
   '''
     ACTION_CALL_SUB_PROCEDURE :
   '''  
   global quadrupletsIndex
-  functionId = p[-1]
-  quadruplets.append(QuadrupletStructure('GOTO', None, symbolsTable[functionId].functionIndex, None))
+  subProcedureId = p[-1]
+  quadruplets.append(QuadrupletStructure('GOTO', None, symbolsTable[subProcedureId].functionIndex, None))
   quadrupletsIndex += 1
 
 ########################################
