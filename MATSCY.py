@@ -16,6 +16,7 @@ from QuadrupletStructure import QuadrupletStructure
 from tokens import tokens
 from reserved_words import reserved_words
 from relational_operators import relational_operators
+from program_executor import execute_program
 
 # Symbols table
 symbolsTable = {}
@@ -28,7 +29,6 @@ operandsTypeStack = []
 temporalVariablesIndex = 0
 jumpsStack = []
 ifsStack = []
-subProceduresStack = []
 
 
 
@@ -115,9 +115,8 @@ lexer = lex.lex()
 
 def p_MATHSCY(p):
 	'''
-	  MATHSCY  : PROGRAM ID DECLARATIONS PROGRAM_BODY END SINGLE_POINT
+	  MATHSCY  : PROGRAM ACTION_START_PROGRAM ID DECLARATIONS ACTION_START_MAIN PROGRAM_BODY END SINGLE_POINT ACTION_END_PROGRAM
 	'''
-	print("\tCORRECTO")
 
 def p_DECLARATIONS(p):
 	'''
@@ -178,9 +177,13 @@ def p_PROGRAM_BODY(p):
 def p_JUMPERS(p):
 	'''
 	  JUMPERS : GOSUB ID ACTION_CALL_SUB_PROCEDURE
-    | GOTO ID
-    | ID DOUBLE_POINTS
 	'''
+  # TODO: Uncomment if optional GOTOs and LABELS are implemented
+	# '''
+	#   JUMPERS : GOSUB ID ACTION_CALL_SUB_PROCEDURE
+  #   | GOTO ID
+  #   | ID DOUBLE_POINTS
+	# '''
 
 def p_VARIABLE_ASSIGNATION(p):
 	'''
@@ -599,25 +602,19 @@ def p_ACTION_ADD_SUB_PROCEDURE(p):
   '''
     ACTION_ADD_SUB_PROCEDURE :
   '''  
-  global quadrupletsIndex, subProceduresStack
+  global quadrupletsIndex
   subProcedureId = p[-1]
-  subProceduresStack.append(subProcedureId)
   # Add subProcedureId to symbols table
   addSymbolToTable(subProcedureId, 'SUB_PROCEDURE', quadrupletsIndex)
-  # Create GOTO quadruplet, which will point to end of function
-  quadruplets.append(QuadrupletStructure('GOTO', None, None, None))
-  quadrupletsIndex += 1
 
 def p_ACTION_END_SUB_PROCEDURE(p):
   '''
     ACTION_END_SUB_PROCEDURE :
   '''  
-  global quadrupletsIndex, subProceduresStack
+  global quadrupletsIndex
   # Create RETURN quadruplet
-  quadruplets.append(QuadrupletStructure('RETURN', None, None, None))
+  quadruplets.append(QuadrupletStructure('END_SUB_PROCEDURE', None, None, None))
   quadrupletsIndex += 1
-  # Fill end of sub_procedure GOTO
-  fillJump(symbolsTable[subProceduresStack.pop()].functionIndex, quadrupletsIndex)
 
 def p_ACTION_CALL_SUB_PROCEDURE(p):
   '''
@@ -625,7 +622,34 @@ def p_ACTION_CALL_SUB_PROCEDURE(p):
   '''  
   global quadrupletsIndex
   subProcedureId = p[-1]
-  quadruplets.append(QuadrupletStructure('GOTO', None, symbolsTable[subProcedureId].functionIndex, None))
+  quadruplets.append(QuadrupletStructure('CALL', symbolsTable[subProcedureId].functionIndex, None, None))
+  quadrupletsIndex += 1
+
+########################################
+######## ACTIONS MAIN_PROGRAM ##########
+########################################  
+def p_ACTION_START_PROGRAM(p):
+  '''
+    ACTION_START_PROGRAM :
+  '''  
+  global quadrupletsIndex
+  # Create GOTO quadruplet, which will point to start of MAIN program
+  quadruplets.append(QuadrupletStructure('GOTO', None, None, None))
+  quadrupletsIndex += 1
+
+def p_ACTION_START_MAIN(p):
+  '''
+    ACTION_START_MAIN :
+  '''  
+  # Fill GOTO that points to start of MAIN program
+  fillJump(0, quadrupletsIndex)
+
+def p_ACTION_END_PROGRAM(p):
+  '''
+    ACTION_END_PROGRAM :
+  '''  
+  global quadrupletsIndex
+  quadruplets.append(QuadrupletStructure('END_PROGRAM', None, None, None))
   quadrupletsIndex += 1
 
 ########################################
@@ -700,5 +724,6 @@ if (len(sys.argv) > 1):
 
   printSymbolsTable()
   printQuadruplets()
+  execute_program(quadruplets, symbolsTable)
 else:
     raise Exception('Please type the name of the test file...')

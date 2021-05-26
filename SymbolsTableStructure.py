@@ -6,3 +6,4 @@ class SymbolsTableStructure:
     self.type = variableType
     self.address = variableAddress
     self.functionIndex = functionIndex
+    self.value = 0 if variableType=='WORD' else 0.0

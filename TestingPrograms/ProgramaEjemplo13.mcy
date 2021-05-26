@@ -6,10 +6,14 @@ PROGRAM Functions_TEST_CORRECT
 # Global variables declaration
 DIM a, b AS WORD
 
+SUB PROCEDURE sumNumbers:
+  a = a + b
+  RETURN
+
 SUB PROCEDURE interactWithUser:
   CLS
   b = INPUT("Please enter a value for b")
-  a = a + b
+  GOSUB sumNumbers
   PRINT("a = ", a, "...")
   RETURN
 
