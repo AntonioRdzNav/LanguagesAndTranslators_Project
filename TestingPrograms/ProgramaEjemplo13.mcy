@@ -1,0 +1,20 @@
+
+# NOTE: CORRECT SYNTAX
+
+PROGRAM Functions_TEST_CORRECT
+
+# Global variables declaration
+DIM a, b AS WORD
+
+SUB PROCEDURE interactWithUser:
+  CLS
+  b = INPUT("Please enter a value for b")
+  a = a + b
+  PRINT("a = ", a, "...")
+  RETURN
+
+MAIN:
+
+  GOTOSUB interactWithUser
+
+END .

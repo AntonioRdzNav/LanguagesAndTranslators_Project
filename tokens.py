@@ -73,6 +73,7 @@ tokens = [
   'SUB',
   'PROCEDURE',
   'RETURN',
+  'GOTOSUB',
   'END',
   'SINGLE_POINT'
 

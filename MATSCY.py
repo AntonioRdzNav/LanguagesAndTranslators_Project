@@ -165,7 +165,7 @@ def p_DIMENSIONAL_VAR_DECLARATION(p):
 	'''
 def p_SUBPROCEDURES_DECLARATION(p):
 	'''
-	  SUBPROCEDURES_DECLARATION : SUB PROCEDURE ID STATEMENTS RETURN SUBPROCEDURES_DECLARATION
+	  SUBPROCEDURES_DECLARATION : SUB PROCEDURE ID ACTION_ADD_SUB_PROCEDURE DOUBLE_POINTS STATEMENTS RETURN ACTION_END_SUB_PROCEDURE SUBPROCEDURES_DECLARATION
     |
 	'''
 
@@ -196,12 +196,12 @@ def p_DIMENSIONAL_VAR_INDEX(p):
     | OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET
 	'''
 
-def p_USER_INTERACTION(p):
+def p_CONSOLE(p):
 	'''
-	  USER_INTERACTION : CLS
-    | ID EQUALS INPUT OPEN_PARENTHESIS STRINGS_SEQUENCE CLOSE_PARENTHESIS
-    | LET ID EQUALS INPUT OPEN_PARENTHESIS STRINGS_SEQUENCE CLOSE_PARENTHESIS
-    | PRINT OPEN_PARENTHESIS STRINGS_SEQUENCE CLOSE_PARENTHESIS
+	  CONSOLE : CLS ACTION_CONSOLE_CLEAR
+    | ID EQUALS INPUT OPEN_PARENTHESIS STRINGS_SEQUENCE CLOSE_PARENTHESIS ACTION_CONSOLE_INPUT
+    | LET ID EQUALS INPUT OPEN_PARENTHESIS STRINGS_SEQUENCE CLOSE_PARENTHESIS ACTION_CONSOLE_INPUT
+    | PRINT OPEN_PARENTHESIS STRINGS_SEQUENCE CLOSE_PARENTHESIS ACTION_CONSOLE_OUTPUT
 	'''
 def p_STRINGS_SEQUENCE(p):
 	'''
@@ -210,6 +210,14 @@ def p_STRINGS_SEQUENCE(p):
     | ID COMMA STRINGS_SEQUENCE
     | ID
 	'''
+  # NOTE: STRINGS_SEQUENCE will always be an array of ids and/or strings
+	# Only one string/id
+	if (len(p) == 2):
+		p[0] = [p[1]]
+	# Multiple strings/ids separated by commas
+	else:
+		# Concatenate current ID array with next STRINGS_SEQUENCE array (recursion)
+		p[0] = [p[1]] + p[len(p)-1]
 
 def p_IF_STATEMENT(p):
 	'''
@@ -237,15 +245,21 @@ def p_FOR_STATEMENT(p):
 	  FOR_STATEMENT : FOR ID EQUALS ARITHMETIC_EXPRESSION ACTION_GENERATE_QUADRUPLET_STORE ACTION_FOR_COUNTER_VALUE TO ARITHMETIC_EXPRESSION ACTION_QUADRUPLET_FOR_CONDITION ACTION_QUADRUPLET_EMPTY_GOTOF STATEMENTS NEXT ID ACTION_FOR_INCREMENT ACTION_WHILE_GOTO
 	'''
 
+def p_GOTOSUB_STATEMENT(p):
+	'''
+	  GOTOSUB_STATEMENT : GOTOSUB ID ACTION_CALL_SUB_PROCEDURE
+	'''
+
 def p_STATEMENTS(p):
 	'''
 	  STATEMENTS : JUMPERS STATEMENTS
     | VARIABLE_ASSIGNATION STATEMENTS
-    | USER_INTERACTION STATEMENTS
+    | CONSOLE STATEMENTS
     | IF_STATEMENT STATEMENTS
     | WHILE_STATEMENT STATEMENTS
     | FOR_STATEMENT STATEMENTS
     | DO_STATEMENT STATEMENTS
+    | GOTOSUB_STATEMENT STATEMENTS
     |
 	'''
 
@@ -583,24 +597,87 @@ def p_ACTION_FOR_INCREMENT(p):
   operandsTypeStack.append(symbolsTable[counterId].type)  
   generateQuadruplet("=")
 
+########################################
+####### ACTIONS SUB_PROCEDURES #########
+########################################  
+def p_ACTION_ADD_SUB_PROCEDURE(p):
+  '''
+    ACTION_ADD_SUB_PROCEDURE :
+  '''  
+  global quadrupletsIndex
+  functionId = p[-1]
+  addSymbolToTable(functionId, 'SUB_PROCEDURE', quadrupletsIndex)
+
+def p_ACTION_END_SUB_PROCEDURE(p):
+  '''
+    ACTION_END_SUB_PROCEDURE :
+  '''  
+  global quadrupletsIndex
+  quadruplets.append(QuadrupletStructure('RETURN', None, None, None))
+  quadrupletsIndex += 1
+
+def p_ACTION_CALL_SUB_PROCEDURE(p):
+  '''
+    ACTION_CALL_SUB_PROCEDURE :
+  '''  
+  global quadrupletsIndex
+  functionId = p[-1]
+  quadruplets.append(QuadrupletStructure('GOTO', None, symbolsTable[functionId].functionIndex, None))
+  quadrupletsIndex += 1
+
+########################################
+########### ACTIONS CONSOLE ############
+########################################  
+def p_ACTION_CONSOLE_CLEAR(p):
+  '''
+    ACTION_CONSOLE_CLEAR :
+  '''  
+  global quadrupletsIndex
+  quadruplets.append(QuadrupletStructure('CLS', None, None, None))
+  quadrupletsIndex += 1  
+  
+def p_ACTION_CONSOLE_INPUT(p):
+  '''
+    ACTION_CONSOLE_INPUT :
+  '''  
+  global quadrupletsIndex
+  inputString = p[-2]
+  inputId = p[-6]
+  quadruplets.append(QuadrupletStructure('INPUT', inputString, inputId, None))
+  quadrupletsIndex += 1  
+
+def p_ACTION_CONSOLE_OUTPUT(p):
+  '''
+    ACTION_CONSOLE_OUTPUT :
+  '''  
+  global quadrupletsIndex
+  outputString = p[-2]
+  quadruplets.append(QuadrupletStructure('OUTPUT', outputString, None, None))
+  quadrupletsIndex += 1  
+
+
+########################################
+########################################
+########################################  
+
 # Build the parser
 parser = yacc.yacc()
 
-def addSymbolToTable(variableId, variableType):
+def addSymbolToTable(variableId, variableType, functionIndex=None):
   # Specify that variable is global to avoid conflict
   global symbolsTableIndex
   if(variableId in symbolsTable):
     raise Exception('Variable \'' + variableId + '\' already declared...')
   # Fill table with new variable information
-  symbolsTable[variableId] = SymbolsTableStructure(variableId, variableType, symbolsTableIndex)
+  symbolsTable[variableId] = SymbolsTableStructure(variableId, variableType, symbolsTableIndex, functionIndex)
   symbolsTableIndex += 1
 
 def printSymbolsTable():
   print("\nSymbols Table:")
-  print("{:<15} {:<10} {:<6}".format('ID','TYPE','ADDRESS'))
+  print("{:<20} {:<15} {:<10} {:<10}".format('ID','TYPE','ADDRESS','FUNCTION_INDEX'))
   for symbolObject in symbolsTable.values():
     attrs = vars(symbolObject)
-    print("{:<15} {:<10} {:<6}".format(str(attrs['id']), str(attrs['type']), str(attrs['address'])))  
+    print("{:<20} {:<15} {:<10} {:<10}".format(str(attrs['id']), str(attrs['type']), str(attrs['address']), str(attrs['functionIndex'])))  
   print("\n")
 
 
