@@ -7,7 +7,7 @@ reserved_words = {
   'FLOAT': 'FLOAT',
 
   'MOD': 'MOD',
-  'DIVIDE_ROUND_DOWN': 'DIVIDE_ROUND_DOWN',
+  'DIV': 'DIV',
   'OR': 'OR',
   'AND': 'AND',
   'NOT': 'NOT',
@@ -28,7 +28,6 @@ reserved_words = {
 
   'MAIN': 'MAIN',
   'GOSUB': 'GOSUB',
-  'GOTO': 'GOTO',
 
   'CLS': 'CLS',
   'INPUT': 'INPUT',

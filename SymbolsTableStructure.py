@@ -1,4 +1,10 @@
 
+initialValueByType = {
+  'WORD': int(0),
+  'FLOAT': float(0.0),
+  'BOOLEAN': False,
+  'SUB_PROCEDURE': None,
+}
 
 class SymbolsTableStructure:
   def __init__(self, variableId, variableType, variableAddress, functionIndex):
@@ -6,4 +12,4 @@ class SymbolsTableStructure:
     self.type = variableType
     self.address = variableAddress
     self.functionIndex = functionIndex
-    self.value = 0 if variableType=='WORD' else 0.0
+    self.value = initialValueByType[variableType]

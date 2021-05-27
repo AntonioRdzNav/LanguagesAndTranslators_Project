@@ -26,7 +26,7 @@ tokens = [
   'MULTIPLY',
   'DIVIDE_FLOATING_POINT',
   'MOD',
-  'DIVIDE_ROUND_DOWN',
+  'DIV',
   'POWER_BY',
 
   # Logical operators
@@ -58,7 +58,6 @@ tokens = [
   'MAIN',
   'DOUBLE_POINTS',
   'GOSUB',
-  'GOTO',
 
   # User interaction (console)
   'CLS',

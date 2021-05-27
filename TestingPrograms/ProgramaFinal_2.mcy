@@ -1,0 +1,52 @@
+
+
+PROGRAM ProgramaDigitos
+
+# Global variables declaration
+DIM readAgain AS WORD
+DIM numberToRead, nextDigit, result AS FLOAT
+
+
+SUB PROCEDURE printNextDigit:
+  IF (nextDigit == 0.0) THEN
+    PRINT("CERO")
+  ELSEIF (nextDigit == 1.0) THEN
+    PRINT("UNO")
+  ELSEIF (nextDigit == 2.0) THEN
+    PRINT("DOS")
+  ELSEIF (nextDigit == 3.0) THEN
+    PRINT("TRES")
+  ELSEIF (nextDigit == 4.0) THEN
+    PRINT("CUATRO")
+  ELSEIF (nextDigit == 5.0) THEN
+    PRINT("CINCO")
+  ELSEIF (nextDigit == 6.0) THEN
+    PRINT("SEIS")
+  ELSEIF (nextDigit == 7.0) THEN
+    PRINT("SIETE")
+  ELSEIF (nextDigit == 8.0) THEN
+    PRINT("OCHO")
+  ELSEIF (nextDigit == 9.0) THEN
+    PRINT("NUEVE")
+  END IF
+  RETURN
+
+SUB PROCEDURE printDigitsOfNumber:
+  result = numberToRead
+  DO 
+    nextDigit = result MOD 10.0
+    result = result DIV 10.0
+    GOSUB printNextDigit
+  LOOP UNTIL (result <= 0.0)
+  RETURN
+
+
+MAIN:
+  
+  DO
+    numberToRead = INPUT("Provide an integer...")
+    GOSUB printDigitsOfNumber
+    readAgain = INPUT("Do you want to test another number? Yes:1 | No:2")
+  LOOP UNTIL (readAgain == 2)
+
+END .

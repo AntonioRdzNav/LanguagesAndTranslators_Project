@@ -1,0 +1,46 @@
+
+
+PROGRAM ProgramaFactorial
+
+# Global variables declaration
+DIM readAgain AS WORD
+DIM factorial_iterative, factorial_recursive, x, i, j AS WORD
+
+
+SUB PROCEDURE factorialOfX_Iterative:
+  factorial_iterative = 1
+  FOR i = 1 TO x
+    factorial_iterative = factorial_iterative * i
+  NEXT i
+  PRINT("The iterative factorial of ", x, " is: ", factorial_iterative)
+  RETURN
+
+SUB PROCEDURE factorialOfX_Recursive_Procedure:
+  IF (j > x) THEN
+    # End of recursion
+  ELSEIF (x == 0) THEN
+    factorial_recursive = 1
+  ELSE
+    factorial_recursive = factorial_recursive * j
+    j = j+1
+    GOSUB factorialOfX_Recursive_Procedure  
+  END IF
+  RETURN
+SUB PROCEDURE factorialOfX_Recursive:
+  factorial_recursive = 1
+  j = 1
+  GOSUB factorialOfX_Recursive_Procedure
+  PRINT("The recursive factorial of ", x, " is: ", factorial_recursive)
+  RETURN
+
+
+MAIN:
+  
+  DO
+    x = INPUT("The factorial of which number would you like to obtain?")
+    GOSUB factorialOfX_Iterative
+    GOSUB factorialOfX_Recursive
+    readAgain = INPUT("Do you want to test with another number? Yes:1 | No:2")
+  LOOP UNTIL (readAgain == 2)
+
+END .

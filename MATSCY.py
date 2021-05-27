@@ -9,14 +9,14 @@ import ply.lex as lex
 import ply.yacc as yacc
 import sys
 import re
-import ctypes
 
 from SymbolsTableStructure import SymbolsTableStructure
 from QuadrupletStructure import QuadrupletStructure
 from tokens import tokens
 from reserved_words import reserved_words
-from relational_operators import relational_operators
+from operators import relational_operators
 from program_executor import execute_program
+from quadruplets_keys import *
 
 # Symbols table
 symbolsTable = {}
@@ -39,7 +39,7 @@ ifsStack = []
 # Regular expression rules for simple tokens (not part of the reserved_words)
 
 # String of any characters inside '' or ""
-t_STRING = r"('[a-zA-Z0-9 \\\.\?\:\t\r\n\f()\[\]\&\!\@\#\$\%\^\-\=\+\/\,]*')|(\"[a-zA-Z0-9 \\\.\?\:\t\r\n\f()\[\]\&\!\@\#\$\%\^\-\=\+\/\,]*\")"
+t_STRING = r"('[a-zA-Z0-9 \\\.\?\:\t\r\n\f()\[\]\&\!\@\#\$\%\^\-\=\+\/\,\|]*')|(\"[a-zA-Z0-9 \\\.\?\:\t\r\n\f()\[\]\&\!\@\#\$\%\^\-\=\+\/\,\|]*\")"
 t_COMMA = r'\,'
 t_OPEN_PARENTHESIS = r'\('
 t_CLOSE_PARENTHESIS = r'\)'
@@ -63,7 +63,6 @@ t_SINGLE_POINT = r'\.'
 # A string containing ignored characters (spaces, tabs, and line-breaks)
 t_ignore = ' \t\n'
 # Comments (capture any 0 or more characters after REM or ' until line-break)
-# TODO: change # for REM and ' (r'(REM|').*' does not work)
 t_ignore_COMMENT = r'\#.*'
 
 
@@ -80,7 +79,7 @@ def t_FLOAT_VALUE(t):
 def t_WORD_VALUE(t):
 	r'\d+'
   # Unsigned integer (16 bits)
-	t.value = ctypes.c_uint16(int(t.value))
+	t.value = int(t.value)
 	return t
 
 # All reserved_words that are not considered an 'ID' are
@@ -122,6 +121,7 @@ def p_DECLARATIONS(p):
 	'''
 	  DECLARATIONS : VARIABLES_DECLARATION SUBPROCEDURES_DECLARATION
 	'''
+
 def p_VARIABLES_DECLARATION(p):
 	'''
 	  VARIABLES_DECLARATION : DIM IDS_SEQUENCE AS VARIABLE_TYPE VARIABLES_DECLARATION
@@ -130,6 +130,7 @@ def p_VARIABLES_DECLARATION(p):
 	if (len(p) > 1):
 		for variableName in p[2]:
 			addSymbolToTable(variableName, p[4])
+
 def p_IDS_SEQUENCE(p):
 	'''
 	  IDS_SEQUENCE : ID COMMA IDS_SEQUENCE
@@ -142,6 +143,7 @@ def p_IDS_SEQUENCE(p):
 	else:
 		# Concatenate current ID array with next IDS_SEQUENCE array (recursion)
 		p[0] = [p[1]] + p[len(p)-1]
+
 def p_VARIABLE_TYPE(p):
 	'''
 	  VARIABLE_TYPE : WORD
@@ -157,12 +159,15 @@ def p_VARIABLE_TYPE(p):
 	else:
 		# TODO: define logic for dimensional types    
 		p[0] = p[1] + ' DIMENSIONAL'
+
+# TODO: dimensional
 def p_DIMENSIONAL_VAR_DECLARATION(p):
 	'''
 	  DIMENSIONAL_VAR_DECLARATION : OPEN_BRACKET SIMPLE_VALUE CLOSE_BRACKET
     | OPEN_BRACKET SIMPLE_VALUE COMMA SIMPLE_VALUE CLOSE_BRACKET
     | OPEN_BRACKET SIMPLE_VALUE COMMA SIMPLE_VALUE COMMA SIMPLE_VALUE CLOSE_BRACKET
 	'''
+
 def p_SUBPROCEDURES_DECLARATION(p):
 	'''
 	  SUBPROCEDURES_DECLARATION : SUB PROCEDURE ID ACTION_ADD_SUB_PROCEDURE DOUBLE_POINTS STATEMENTS RETURN ACTION_END_SUB_PROCEDURE SUBPROCEDURES_DECLARATION
@@ -178,13 +183,8 @@ def p_JUMPERS(p):
 	'''
 	  JUMPERS : GOSUB ID ACTION_CALL_SUB_PROCEDURE
 	'''
-  # TODO: Uncomment if optional GOTOs and LABELS are implemented
-	# '''
-	#   JUMPERS : GOSUB ID ACTION_CALL_SUB_PROCEDURE
-  #   | GOTO ID
-  #   | ID DOUBLE_POINTS
-	# '''
 
+# TODO: dimensional
 def p_VARIABLE_ASSIGNATION(p):
 	'''
 	  VARIABLE_ASSIGNATION : ID EQUALS ARITHMETIC_EXPRESSION ACTION_GENERATE_QUADRUPLET_STORE
@@ -193,6 +193,7 @@ def p_VARIABLE_ASSIGNATION(p):
     | LET ID DIMENSIONAL_VAR_INDEX EQUALS ARITHMETIC_EXPRESSION
 	'''
 
+# TODO: dimensional
 def p_DIMENSIONAL_VAR_INDEX(p):
 	'''
 	  DIMENSIONAL_VAR_INDEX : OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET
@@ -207,6 +208,7 @@ def p_CONSOLE(p):
     | LET ID EQUALS INPUT OPEN_PARENTHESIS STRINGS_SEQUENCE CLOSE_PARENTHESIS ACTION_CONSOLE_INPUT
     | PRINT OPEN_PARENTHESIS STRINGS_SEQUENCE CLOSE_PARENTHESIS ACTION_CONSOLE_OUTPUT
 	'''
+
 def p_STRINGS_SEQUENCE(p):
 	'''
 	  STRINGS_SEQUENCE : STRING COMMA STRINGS_SEQUENCE
@@ -227,6 +229,7 @@ def p_IF_STATEMENT(p):
 	'''
 	  IF_STATEMENT : IF LOGICAL_EXPRESSION THEN ACTION_NEW_IF ACTION_QUADRUPLET_EMPTY_GOTOF STATEMENTS ELSE_STATEMENT END IF ACTION_FILL_GOTO
 	'''
+
 def p_ELSE_STATEMENT(p):
 	'''
 	  ELSE_STATEMENT : ELSE ACTION_QUADRUPLET_EMPTY_GOTO ACTION_FILL_GOTOF STATEMENTS
@@ -268,6 +271,7 @@ def p_SIMPLE_VALUE(p):
     | FLOAT_VALUE ACTION_FLOAT_VALUE
   '''
 # SIMPLE_VALUE, ARITHMETIC_EXPRESSION, ID, arrays, matrices, cubes
+# TODO: dimensional
 def p_ANY_VALUE(p):
   '''
     ANY_VALUE : SIMPLE_VALUE
@@ -290,7 +294,7 @@ def p_ARITHMETIC_EXPRESSION_P1(p):
     | ARITHMETIC_EXPRESSION_P1 MULTIPLY ARITHMETIC_EXPRESSION_P2 ACTION_GENERATE_QUADRUPLET
     | ARITHMETIC_EXPRESSION_P1 DIVIDE_FLOATING_POINT ARITHMETIC_EXPRESSION_P2 ACTION_GENERATE_QUADRUPLET
     | ARITHMETIC_EXPRESSION_P1 MOD ARITHMETIC_EXPRESSION_P2 ACTION_GENERATE_QUADRUPLET
-    | ARITHMETIC_EXPRESSION_P1 DIVIDE_ROUND_DOWN ARITHMETIC_EXPRESSION_P2 ACTION_GENERATE_QUADRUPLET
+    | ARITHMETIC_EXPRESSION_P1 DIV ARITHMETIC_EXPRESSION_P2 ACTION_GENERATE_QUADRUPLET
 	'''  
 def p_ARITHMETIC_EXPRESSION_P2(p):
 	'''
@@ -402,9 +406,9 @@ def generateQuadruplet(operator):
   operandTypeLeft = operandsTypeStack.pop()
   if (operandTypeRight != operandTypeLeft):
     raise Exception('Attempted to make an operation with variables of different type...')
-  if (operator == '='):
+  if (operator == EQUAL_QUAD):
     # Generate STORE quadruplet
-    quadruplets.append(QuadrupletStructure(operator, operandLeft, operandRight, None))
+    quadruplets.append(QuadrupletStructure(EQUAL_QUAD, operandLeft, operandRight, None))
     quadrupletsIndex += 1
   else:
     # If the operator is a relational-operator, then assign a 'BOOLEAN'
@@ -440,14 +444,6 @@ def generateQuadruplet__Not():
   quadruplets.append(QuadrupletStructure('NOT', operand, None, tempName))
   quadrupletsIndex += 1
 
-def printQuadruplets():
-  print("\nQuadruplets:")
-  print("{:<7} {:<10} {:<15} {:<15} {:<5}".format('INDEX','OPERATOR','OPERAND_LEFT','OPERAND_RIGHT','RESULT'))  
-  for (index, quadObject) in enumerate(quadruplets):
-    attrs = vars(quadObject)
-    print("{:<7} {:<10} {:<15} {:<15} {:<5}".format(str(index), str(attrs['operator']), str(attrs['operandLeft']), str(attrs['operandRight']), str(attrs['result'])))  
-  print("\n")    
-
 
 ########################################
 ######## ACTIONS IF STATEMENTS #########
@@ -473,7 +469,7 @@ def p_ACTION_QUADRUPLET_EMPTY_GOTOF(p):
   if (symbolsTable[logicalExpressionResultId].type != 'BOOLEAN'):
     raise Exception('Expression result of an IF-STATEMENT was not a BOOLEAN type...')
   # GOTOF quadruplet is created without specifying jumping address (operandRight)
-  quadruplets.append(QuadrupletStructure('GOTOF', logicalExpressionResultId, None, None))
+  quadruplets.append(QuadrupletStructure(GOTOF_QUAD, logicalExpressionResultId, None, None))
   # Add current quadruplet-index to (jumpsStack) to later fill the missing jumping-address
   jumpsStack.append(quadrupletsIndex)
   quadrupletsIndex += 1
@@ -492,7 +488,7 @@ def p_ACTION_QUADRUPLET_EMPTY_GOTO(p):
   # Append quadruplet-index to remember to fill the following 
   # GOTO jumping address after the IF-STATEMENT finishes.
   ifsStack[-1].append(quadrupletsIndex)
-  quadruplets.append(QuadrupletStructure('GOTO', None, None, None))
+  quadruplets.append(QuadrupletStructure(GOTO_QUAD, None, None, None))
   quadrupletsIndex += 1
 
 def p_ACTION_FILL_GOTO(p):
@@ -512,6 +508,7 @@ def fillJump(pendingGotoQuadrupletIndex, jumpAddress):
   # stored in the (operandRight) field.
   pendingQuadruplet.operandRight = jumpAddress
 
+
 ########################################
 ####### ACTIONS LOOP STATEMENTS ########
 ########################################  
@@ -529,7 +526,7 @@ def p_ACTION_WHILE_GOTO(p):
   global quadrupletsIndex
   pendingGotoQuadrupletIndex = jumpsStack.pop()
   loopStartQuadrupletIndex = jumpsStack.pop()
-  quadruplets.append(QuadrupletStructure('GOTO', None, loopStartQuadrupletIndex, None))
+  quadruplets.append(QuadrupletStructure(GOTO_QUAD, None, loopStartQuadrupletIndex, None))
   quadrupletsIndex += 1
   fillJump(pendingGotoQuadrupletIndex, quadrupletsIndex) 
 
@@ -547,7 +544,7 @@ def p_ACTION_QUADRUPLET_EMPTY_GOTOF_DO_WHILE(p):
     raise Exception('Expression result of an DO-ULTIL-STATEMENT was not a BOOLEAN type...')
   # GOTOF quadruplet is created without specifying jumping address (operandRight)
   loopStartQuadrupletIndex = jumpsStack.pop()
-  quadruplets.append(QuadrupletStructure('GOTOF', logicalExpressionResultId, loopStartQuadrupletIndex, None))
+  quadruplets.append(QuadrupletStructure(GOTOF_QUAD, logicalExpressionResultId, loopStartQuadrupletIndex, None))
   # Add current quadruplet-index to (jumpsStack) to later fill the missing jumping-address
   jumpsStack.append(quadrupletsIndex)
   quadrupletsIndex += 1  
@@ -584,7 +581,7 @@ def p_ACTION_FOR_INCREMENT(p):
   operandsStack.append(symbolsTable[counterId].id)
   operandsTypeStack.append(symbolsTable[counterId].type)
   if(symbolsTable[counterId].type == 'WORD'):
-    operandsStack.append(ctypes.c_uint16(int(1)))
+    operandsStack.append(int(1))
     operandsTypeStack.append('WORD')
   else:
     operandsStack.append(float(1))
@@ -594,6 +591,7 @@ def p_ACTION_FOR_INCREMENT(p):
   operandsStack.append(symbolsTable[counterId].id)
   operandsTypeStack.append(symbolsTable[counterId].type)  
   generateQuadruplet("=")
+
 
 ########################################
 ####### ACTIONS SUB_PROCEDURES #########
@@ -613,7 +611,7 @@ def p_ACTION_END_SUB_PROCEDURE(p):
   '''  
   global quadrupletsIndex
   # Create RETURN quadruplet
-  quadruplets.append(QuadrupletStructure('END_SUB_PROCEDURE', None, None, None))
+  quadruplets.append(QuadrupletStructure(END_SUB_PROCEDURE_QUAD, None, None, None))
   quadrupletsIndex += 1
 
 def p_ACTION_CALL_SUB_PROCEDURE(p):
@@ -622,8 +620,9 @@ def p_ACTION_CALL_SUB_PROCEDURE(p):
   '''  
   global quadrupletsIndex
   subProcedureId = p[-1]
-  quadruplets.append(QuadrupletStructure('CALL', symbolsTable[subProcedureId].functionIndex, None, None))
+  quadruplets.append(QuadrupletStructure(CALL_SUB_PROCEDURE_QUAD, symbolsTable[subProcedureId].functionIndex, None, None))
   quadrupletsIndex += 1
+
 
 ########################################
 ######## ACTIONS MAIN_PROGRAM ##########
@@ -634,7 +633,7 @@ def p_ACTION_START_PROGRAM(p):
   '''  
   global quadrupletsIndex
   # Create GOTO quadruplet, which will point to start of MAIN program
-  quadruplets.append(QuadrupletStructure('GOTO', None, None, None))
+  quadruplets.append(QuadrupletStructure(GOTO_QUAD, None, None, None))
   quadrupletsIndex += 1
 
 def p_ACTION_START_MAIN(p):
@@ -649,8 +648,9 @@ def p_ACTION_END_PROGRAM(p):
     ACTION_END_PROGRAM :
   '''  
   global quadrupletsIndex
-  quadruplets.append(QuadrupletStructure('END_PROGRAM', None, None, None))
+  quadruplets.append(QuadrupletStructure(END_PROGRAM_QUAD, None, None, None))
   quadrupletsIndex += 1
+
 
 ########################################
 ########### ACTIONS CONSOLE ############
@@ -660,7 +660,7 @@ def p_ACTION_CONSOLE_CLEAR(p):
     ACTION_CONSOLE_CLEAR :
   '''  
   global quadrupletsIndex
-  quadruplets.append(QuadrupletStructure('CLS', None, None, None))
+  quadruplets.append(QuadrupletStructure(CLS_QUAD, None, None, None))
   quadrupletsIndex += 1  
   
 def p_ACTION_CONSOLE_INPUT(p):
@@ -670,7 +670,7 @@ def p_ACTION_CONSOLE_INPUT(p):
   global quadrupletsIndex
   inputString = p[-2]
   inputId = p[-6]
-  quadruplets.append(QuadrupletStructure('INPUT', inputString, inputId, None))
+  quadruplets.append(QuadrupletStructure(INPUT_QUAD, inputString, inputId, None))
   quadrupletsIndex += 1  
 
 def p_ACTION_CONSOLE_OUTPUT(p):
@@ -679,7 +679,7 @@ def p_ACTION_CONSOLE_OUTPUT(p):
   '''  
   global quadrupletsIndex
   outputString = p[-2]
-  quadruplets.append(QuadrupletStructure('OUTPUT', outputString, None, None))
+  quadruplets.append(QuadrupletStructure(OUTPUT_QUAD, outputString, None, None))
   quadrupletsIndex += 1  
 
 
@@ -701,11 +701,20 @@ def addSymbolToTable(variableId, variableType, functionIndex=None):
 
 def printSymbolsTable():
   print("\nSymbols Table:")
-  print("{:<20} {:<15} {:<10} {:<10}".format('ID','TYPE','ADDRESS','FUNCTION_INDEX'))
+  print("{:<20} {:<15} {:<10} {:<15} {:<10}".format('ID','TYPE','ADDRESS','FUNCTION_INDEX', 'VALUE'))
   for symbolObject in symbolsTable.values():
     attrs = vars(symbolObject)
-    print("{:<20} {:<15} {:<10} {:<10}".format(str(attrs['id']), str(attrs['type']), str(attrs['address']), str(attrs['functionIndex'])))  
+    print("{:<20} {:<15} {:<10} {:<15} {:<10}".format(str(attrs['id']), str(attrs['type']), str(attrs['address']), str(attrs['functionIndex']), str(attrs['value'])))
   print("\n")
+
+def printQuadruplets():
+  print("\nQuadruplets:")
+  print("{:<7} {:<20} {:<15} {:<15} {:<5}".format('INDEX','KEY','OPERAND_LEFT','OPERAND_RIGHT','RESULT'))  
+  for (index, quadObject) in enumerate(quadruplets):
+    attrs = vars(quadObject)
+    operandLeft = 'Strings Array' if attrs['key']=='OUTPUT' or attrs['key']=='INPUT' else str(attrs['operandLeft'])
+    print("{:<7} {:<20} {:<15} {:<15} {:<5}".format(str(index), str(attrs['key']), operandLeft, str(attrs['operandRight']), str(attrs['result'])))  
+  print("\n")    
 
 
 # Receive file name from parameter when executing program from terminal
@@ -722,8 +731,8 @@ if (len(sys.argv) > 1):
   parser.parse(program)
   program_file.close()
 
+  execute_program(quadruplets, symbolsTable)
   printSymbolsTable()
   printQuadruplets()
-  execute_program(quadruplets, symbolsTable)
 else:
     raise Exception('Please type the name of the test file...')

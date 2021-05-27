@@ -1,0 +1,41 @@
+
+
+PROGRAM PruebaTriangulo
+
+# Global variables declaration
+DIM anotherTriangle AS WORD
+DIM height, base, sideValue, perimeter AS FLOAT
+DIM squareRootContent, i, p AS FLOAT
+
+
+SUB PROCEDURE calculateSide:
+  squareRootContent = height^2.0 + (base/2.0)^2.0
+  p = squareRootContent
+  i = 0.0
+  WHILE (i <> p)
+    i = p
+    p = (squareRootContent/p + p) / 2.0
+  WEND
+  sideValue = p
+  RETURN
+
+SUB PROCEDURE calculateTrianglePerimeter:
+  GOSUB calculateSide
+  perimeter = base + sideValue*2.0
+  RETURN
+
+SUB PROCEDURE readTriangle:
+  base = INPUT("Provide the base of the triangle...")
+  height = INPUT("Provide the height of the triangle...")
+  RETURN
+
+MAIN:
+  
+  DO
+    GOSUB readTriangle
+    GOSUB calculateTrianglePerimeter
+    PRINT("Perimeter of triangle is: ", perimeter)
+    anotherTriangle = INPUT("Do you want to test another Triangle? Yes:1 | No:2")
+  LOOP UNTIL (anotherTriangle == 2)
+
+END .
