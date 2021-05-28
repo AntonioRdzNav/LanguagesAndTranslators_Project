@@ -9,13 +9,14 @@ import ply.lex as lex
 import ply.yacc as yacc
 import sys
 import re
+import numpy as np
 
 from SymbolsTableStructure import SymbolsTableStructure
 from QuadrupletStructure import QuadrupletStructure
 from tokens import tokens
 from reserved_words import reserved_words
-from operators import relational_operators
-from program_executor import execute_program
+from operators import relational_operators, dimensionalOperatorStringToFunctional
+from program_executor import execute_program, isTypeDimensional
 from quadruplets_keys import *
 
 # Symbols table
@@ -129,7 +130,10 @@ def p_VARIABLES_DECLARATION(p):
 	'''
 	if (len(p) > 1):
 		for variableName in p[2]:
-			addSymbolToTable(variableName, p[4])
+			if (p[4]['dimensions'] == None):
+				addSymbolToTable(variableName, p[4]['type'])
+			else:				
+				addSymbolToTable(variableName, p[4]['type'], dimensions=p[4]['dimensions'])
 
 def p_IDS_SEQUENCE(p):
 	'''
@@ -155,18 +159,33 @@ def p_VARIABLE_TYPE(p):
 	if(len(p) < 3):
 		# VARIABLE_TYPE = WORD | FLOAT
 		p[0] = p[1]
+		p[0] = { 'type': p[1], 'dimensions': None }
 	# Dimensional type
 	else:
-		# TODO: define logic for dimensional types    
-		p[0] = p[1] + ' DIMENSIONAL'
+		p[2]['type'] = p[1] + '_' + p[2]['type'] 
+		p[0] = p[2]
 
-# TODO: dimensional
 def p_DIMENSIONAL_VAR_DECLARATION(p):
 	'''
 	  DIMENSIONAL_VAR_DECLARATION : OPEN_BRACKET SIMPLE_VALUE CLOSE_BRACKET
     | OPEN_BRACKET SIMPLE_VALUE COMMA SIMPLE_VALUE CLOSE_BRACKET
     | OPEN_BRACKET SIMPLE_VALUE COMMA SIMPLE_VALUE COMMA SIMPLE_VALUE CLOSE_BRACKET
 	'''
+	if(len(p) == 4):
+		p[0] = {
+      'type': 'ARRAY',
+		  'dimensions': [p[2]],
+    }
+	elif(len(p) == 6):
+		p[0] = {
+      'type': 'MATRIX',
+		  'dimensions': [p[2], p[4]],
+    }
+	elif(len(p) == 8):
+		p[0] = {
+      'type': 'CUBE',
+		  'dimensions': [p[2], p[4], p[6]],
+    }
 
 def p_SUBPROCEDURES_DECLARATION(p):
 	'''
@@ -188,17 +207,13 @@ def p_JUMPERS(p):
 def p_VARIABLE_ASSIGNATION(p):
 	'''
 	  VARIABLE_ASSIGNATION : ID EQUALS ARITHMETIC_EXPRESSION ACTION_GENERATE_QUADRUPLET_STORE
-    | ID DIMENSIONAL_VAR_INDEX EQUALS ARITHMETIC_EXPRESSION
+    | ID OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET EQUALS ARITHMETIC_EXPRESSION ACTION_GENERATE_QUADRUPLET_STORE_ARRAY
+    | ID OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET EQUALS ARITHMETIC_EXPRESSION ACTION_GENERATE_QUADRUPLET_STORE_MATRIX
+    | ID OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET EQUALS ARITHMETIC_EXPRESSION ACTION_GENERATE_QUADRUPLET_STORE_CUBE
     | LET ID EQUALS ARITHMETIC_EXPRESSION ACTION_GENERATE_QUADRUPLET_STORE
-    | LET ID DIMENSIONAL_VAR_INDEX EQUALS ARITHMETIC_EXPRESSION
-	'''
-
-# TODO: dimensional
-def p_DIMENSIONAL_VAR_INDEX(p):
-	'''
-	  DIMENSIONAL_VAR_INDEX : OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET
-    | OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET
-    | OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET
+    | LET ID OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET EQUALS ARITHMETIC_EXPRESSION ACTION_GENERATE_QUADRUPLET_STORE_ARRAY
+    | LET ID OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET EQUALS ARITHMETIC_EXPRESSION ACTION_GENERATE_QUADRUPLET_STORE_MATRIX
+    | LET ID OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET EQUALS ARITHMETIC_EXPRESSION ACTION_GENERATE_QUADRUPLET_STORE_CUBE
 	'''
 
 def p_CONSOLE(p):
@@ -209,12 +224,13 @@ def p_CONSOLE(p):
     | PRINT OPEN_PARENTHESIS STRINGS_SEQUENCE CLOSE_PARENTHESIS ACTION_CONSOLE_OUTPUT
 	'''
 
+# TODO: logic for ANY_VAUE
 def p_STRINGS_SEQUENCE(p):
 	'''
 	  STRINGS_SEQUENCE : STRING COMMA STRINGS_SEQUENCE
     | STRING
-    | ID COMMA STRINGS_SEQUENCE
-    | ID
+    | ANY_VALUE COMMA STRINGS_SEQUENCE
+    | ANY_VALUE
 	'''
   # NOTE: STRINGS_SEQUENCE will always be an array of ids and/or strings
 	# Only one string/id
@@ -270,16 +286,34 @@ def p_SIMPLE_VALUE(p):
     SIMPLE_VALUE : WORD_VALUE ACTION_WORD_VALUE
     | FLOAT_VALUE ACTION_FLOAT_VALUE
   '''
-# SIMPLE_VALUE, ARITHMETIC_EXPRESSION, ID, arrays, matrices, cubes
-# TODO: dimensional
+  p[0] = p[1]
+  
 def p_ANY_VALUE(p):
   '''
     ANY_VALUE : SIMPLE_VALUE
     | ID ACTION_VARIABLE_VALUE
-    | ID OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET
-    | ID OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET
-    | ID OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET
-  '''  
+    | ID OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET ACTION_VARIABLE_ARRAY_VALUE
+    | ID OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET ACTION_VARIABLE_MATRIX_VALUE
+    | ID OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET OPEN_BRACKET ARITHMETIC_EXPRESSION CLOSE_BRACKET ACTION_VARIABLE_CUBE_VALUE
+  '''
+  if (len(p) <= 3):
+    p[0] = p[1]
+  elif (len(p) == 6):
+    p[0] = {
+      'type': 'ARRAY',
+  	  'id': p[1],
+    }
+  elif(len(p) == 9):
+    p[0] = {
+      'type': 'MATRIX',
+  	  'id': p[1],
+    }
+  elif(len(p) == 11):
+    p[0] = {
+      'type': 'CUBE',
+  	  'id': p[1],
+    }
+
 
 # ARITHMETIC_EXPRESSION
 def p_ARITHMETIC_EXPRESSION(p):
@@ -370,6 +404,37 @@ def p_ACTION_VARIABLE_VALUE(p):
   operandsStack.append(symbolsTable[p[-1]].id)
   operandsTypeStack.append(symbolsTable[p[-1]].type)
 
+def p_ACTION_VARIABLE_ARRAY_VALUE(p):
+  '''
+    ACTION_VARIABLE_ARRAY_VALUE :
+  '''   
+  arrayId = p[-4]
+  arrayHash = buildDimensionalHashByType('ARRAY', arrayId)
+  operandsStack.append(arrayHash)
+  arrayType = 'WORD' if ('WORD' in symbolsTable[arrayId].type) else 'FLOAT'
+  operandsTypeStack.append(arrayType)
+
+def p_ACTION_VARIABLE_MATRIX_VALUE(p):
+  '''
+    ACTION_VARIABLE_MATRIX_VALUE :
+  '''   
+  matrixId = p[-7]
+  matrixHash = buildDimensionalHashByType('MATRIX', matrixId)
+  operandsStack.append(matrixHash)
+  matrixType = 'WORD' if ('WORD' in symbolsTable[matrixId].type) else 'FLOAT'
+  operandsTypeStack.append(matrixType)
+
+def p_ACTION_VARIABLE_CUBE_VALUE(p):
+  '''
+    ACTION_VARIABLE_CUBE_VALUE :
+  '''   
+  cubeId = p[-10]
+  cubeHash = buildDimensionalHashByType('CUBE', cubeId)
+  operandsStack.append(cubeHash)
+  cubeType = 'WORD' if ('WORD' in symbolsTable[cubeId].type) else 'FLOAT'
+  operandsTypeStack.append(cubeType)
+
+
 def p_ACTION_GENERATE_QUADRUPLET_STORE(p):
   '''
     ACTION_GENERATE_QUADRUPLET_STORE :
@@ -377,6 +442,64 @@ def p_ACTION_GENERATE_QUADRUPLET_STORE(p):
   operandsStack.append(symbolsTable[p[-3]].id)
   operandsTypeStack.append(symbolsTable[p[-3]].type)
   generateQuadruplet("=")
+
+def p_ACTION_GENERATE_QUADRUPLET_STORE_ARRAY(p):
+  '''
+    ACTION_GENERATE_QUADRUPLET_STORE_ARRAY :
+  '''
+  global quadrupletsIndex  
+  # Get (operandLeft)
+  operandLeft = operandsStack.pop()
+  operandTypeLeft = operandsTypeStack.pop()
+  # Get (operandRight)
+  arrayId = p[-6]
+  arrayElementHash = buildDimensionalHashByType('ARRAY', arrayId)
+  operandRight = arrayElementHash
+  operandTypeRight = symbolsTable[arrayId].type
+  # Create quadruplet
+  if not(operandTypeLeft in operandTypeRight):
+    raise Exception('Attempted to make an operation with variables of different type...')
+  quadruplets.append(QuadrupletStructure(EQUAL_QUAD, operandLeft, operandRight, None))
+  quadrupletsIndex += 1
+
+def p_ACTION_GENERATE_QUADRUPLET_STORE_MATRIX(p):
+  '''
+    ACTION_GENERATE_QUADRUPLET_STORE_MATRIX :
+  '''
+  global quadrupletsIndex  
+  # Get (operandLeft)
+  operandLeft = operandsStack.pop()
+  operandTypeLeft = operandsTypeStack.pop()
+  # Get (operandRight)  
+  matrixId = p[-9]
+  matrixElementHash = buildDimensionalHashByType('MATRIX', matrixId)
+  operandRight = matrixElementHash
+  operandTypeRight = symbolsTable[matrixId].type
+  # Create quadruplet
+  if not(operandTypeLeft in operandTypeRight):
+    raise Exception('Attempted to make an operation with variables of different type...')
+  quadruplets.append(QuadrupletStructure(EQUAL_QUAD, operandLeft, operandRight, None))
+  quadrupletsIndex += 1
+
+
+def p_ACTION_GENERATE_QUADRUPLET_STORE_CUBE(p):
+  '''
+    ACTION_GENERATE_QUADRUPLET_STORE_CUBE :
+  '''
+  global quadrupletsIndex  
+  # Get (operandLeft)
+  operandLeft = operandsStack.pop()
+  operandTypeLeft = operandsTypeStack.pop()
+  # Get (operandRight)  
+  cubeId = p[-12]
+  cubeElementHash = buildDimensionalHashByType('CUBE', cubeId)
+  operandRight = cubeElementHash
+  operandTypeRight = symbolsTable[cubeId].type
+  # Create quadruplet
+  if not(operandTypeLeft in operandTypeRight):
+    raise Exception('Attempted to make an operation with variables of different type...')
+  quadruplets.append(QuadrupletStructure(EQUAL_QUAD, operandLeft, operandRight, None))
+  quadrupletsIndex += 1  
 
 def p_ACTION_GENERATE_QUADRUPLET(p):
   '''
@@ -414,12 +537,18 @@ def generateQuadruplet(operator):
     # If the operator is a relational-operator, then assign a 'BOOLEAN'
     # type to the result.
     resultType = 'BOOLEAN' if operator in relational_operators else operandTypeLeft
+    isDimensional = isTypeDimensional(operandTypeLeft)
     # Save space for temporal variable in symbols table
     # NOTE: The character '#' at the beginning ensures that no
     # variableId will be named equal to this one.
     # NOTE: the resulting temporal variable has the same type as the operators.
     tempName = '#temp_' + str(temporalVariablesIndex)
-    addSymbolToTable(tempName, resultType)
+    if (isDimensional):
+      dimensionalResult = dimensionalOperatorStringToFunctional[operator](symbolsTable[operandLeft].value, symbolsTable[operandRight].value)
+      dimensionsList = list(dimensionalResult.shape)
+      addSymbolToTable(tempName, resultType, dimensions=dimensionsList)
+    else:
+      addSymbolToTable(tempName, resultType)    
     temporalVariablesIndex += 1
     # Add temp data to stacks
     operandsStack.append(tempName)
@@ -603,7 +732,7 @@ def p_ACTION_ADD_SUB_PROCEDURE(p):
   global quadrupletsIndex
   subProcedureId = p[-1]
   # Add subProcedureId to symbols table
-  addSymbolToTable(subProcedureId, 'SUB_PROCEDURE', quadrupletsIndex)
+  addSymbolToTable(subProcedureId, 'SUB_PROCEDURE', functionIndex=quadrupletsIndex)
 
 def p_ACTION_END_SUB_PROCEDURE(p):
   '''
@@ -662,15 +791,22 @@ def p_ACTION_CONSOLE_CLEAR(p):
   global quadrupletsIndex
   quadruplets.append(QuadrupletStructure(CLS_QUAD, None, None, None))
   quadrupletsIndex += 1  
-  
+
 def p_ACTION_CONSOLE_INPUT(p):
   '''
     ACTION_CONSOLE_INPUT :
   '''  
   global quadrupletsIndex
-  inputString = p[-2]
   inputId = p[-6]
-  quadruplets.append(QuadrupletStructure(INPUT_QUAD, inputString, inputId, None))
+  inputStrings = p[-2]
+  # Hash dimensional variables
+  operandsStackVisitedElements = 1
+  for i in range (len(inputStrings)):
+    if isinstance(inputStrings[i], dict):
+      inputStrings[i] = operandsStack[-operandsStackVisitedElements]
+      operandsStackVisitedElements = operandsStackVisitedElements + 1
+  # Build Quadruplet  
+  quadruplets.append(QuadrupletStructure(INPUT_QUAD, inputStrings, inputId, None))
   quadrupletsIndex += 1  
 
 def p_ACTION_CONSOLE_OUTPUT(p):
@@ -678,10 +814,48 @@ def p_ACTION_CONSOLE_OUTPUT(p):
     ACTION_CONSOLE_OUTPUT :
   '''  
   global quadrupletsIndex
-  outputString = p[-2]
-  quadruplets.append(QuadrupletStructure(OUTPUT_QUAD, outputString, None, None))
+  outputStrings = p[-2]
+  # Hash dimensional variables
+  operandsStackVisitedElements = 1
+  for i in range (len(outputStrings)):
+    if isinstance(outputStrings[i], dict):
+      outputStrings[i] = operandsStack[-operandsStackVisitedElements]
+      operandsStackVisitedElements = operandsStackVisitedElements + 1
+  # Build Quadruplet
+  quadruplets.append(QuadrupletStructure(OUTPUT_QUAD, outputStrings, None, None))
   quadrupletsIndex += 1  
 
+def buildDimensionalHashByType(type, id):
+  if (type == 'ARRAY'):
+    # Get indexes
+    index_1 = operandsStack.pop()
+    index_1_Type = operandsTypeStack.pop()
+    if (index_1_Type!='WORD'):
+      raise Exception('Index of dimensional variable must be type WORD...')  
+    # Build arrayHash
+    return '@'+id+'@'+str(index_1)    
+  elif (type == 'MATRIX'):
+    # Get indexes
+    index_2 = operandsStack.pop()
+    index_2_Type = operandsTypeStack.pop()
+    index_1 = operandsStack.pop()
+    index_1_Type = operandsTypeStack.pop()
+    if (index_2_Type!='WORD' or index_1_Type!='WORD'):
+      raise Exception('Index of dimensional variable must be type WORD...')
+    # Build matrixHash  
+    return '@'+id+'@'+str(index_1)+'@'+str(index_2)  
+  elif (type == 'CUBE'):
+    # Get indexes
+    index_3 = operandsStack.pop()
+    index_3_Type = operandsTypeStack.pop()
+    index_2 = operandsStack.pop()
+    index_2_Type = operandsTypeStack.pop()
+    index_1 = operandsStack.pop()
+    index_1_Type = operandsTypeStack.pop()
+    if (index_3_Type!='WORD' or index_2_Type!='WORD' or index_1_Type!='WORD'):
+      raise Exception('Index of dimensional variable must be type WORD...')
+    # Build cubeHash 
+    return '@'+id+'@'+str(index_1)+'@'+str(index_2)+'@'+str(index_3)  
 
 ########################################
 ########################################
@@ -690,21 +864,30 @@ def p_ACTION_CONSOLE_OUTPUT(p):
 # Build the parser
 parser = yacc.yacc()
 
-def addSymbolToTable(variableId, variableType, functionIndex=None):
+def addSymbolToTable(variableId, variableType, functionIndex=None, dimensions=None):
   # Specify that variable is global to avoid conflict
   global symbolsTableIndex
   if(variableId in symbolsTable):
     raise Exception('Variable \'' + variableId + '\' already declared...')
+  # Get dimensions (if exists)
+  if(isinstance(dimensions, list)):
+    dimension1 = None if len(dimensions) < 1 else dimensions[0]
+    dimension2 = None if len(dimensions) < 2 else dimensions[1]
+    dimension3 = None if len(dimensions) < 3 else dimensions[2]
+    symbolsTable[variableId] = SymbolsTableStructure(variableId, variableType, symbolsTableIndex, functionIndex, dimension1, dimension2, dimension3)
   # Fill table with new variable information
-  symbolsTable[variableId] = SymbolsTableStructure(variableId, variableType, symbolsTableIndex, functionIndex)
-  symbolsTableIndex += 1
+  else:
+    symbolsTable[variableId] = SymbolsTableStructure(variableId, variableType, symbolsTableIndex, functionIndex, None, None, None)
+    symbolsTableIndex += 1
 
 def printSymbolsTable():
   print("\nSymbols Table:")
   print("{:<20} {:<15} {:<10} {:<15} {:<10}".format('ID','TYPE','ADDRESS','FUNCTION_INDEX', 'VALUE'))
   for symbolObject in symbolsTable.values():
     attrs = vars(symbolObject)
-    print("{:<20} {:<15} {:<10} {:<15} {:<10}".format(str(attrs['id']), str(attrs['type']), str(attrs['address']), str(attrs['functionIndex']), str(attrs['value'])))
+    isDimensional = isTypeDimensional(attrs['type'])
+    value = str(attrs['value'].tolist()) if (isDimensional) else (attrs['value'])
+    print("{:<20} {:<15} {:<10} {:<15} {:<10}".format(str(attrs['id']), str(attrs['type']), str(attrs['address']), str(attrs['functionIndex']), str(value)))
   print("\n")
 
 def printQuadruplets():

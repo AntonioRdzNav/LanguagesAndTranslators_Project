@@ -1,3 +1,4 @@
+import operator
 
 arithmetic_operators = [
   '+',
@@ -23,3 +24,10 @@ logical_operators = [
   'OR',
   'AND'
 ]
+
+dimensionalOperatorStringToFunctional = {
+  '+': operator.add,
+  '-': operator.sub,
+  '*': operator.truediv,
+  '/': operator.mul,
+}

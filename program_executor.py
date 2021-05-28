@@ -8,8 +8,6 @@ from os import system, name
 import re
 import math
 
-from SymbolsTableStructure import SymbolsTableStructure
-from QuadrupletStructure import QuadrupletStructure
 from operators import relational_operators, arithmetic_operators, logical_operators
 from quadruplets_keys import *
 
@@ -20,6 +18,8 @@ functionsStack = []
 
 endOfProgramPC = None
 
+def isTypeDimensional(type):
+  return ("ARRAY" in type) or ("MATRIX" in type) or ("CUBE" in type)  
 
 def execute_program(quadruplets, symbolsTable):
   global endOfProgramPC
@@ -34,19 +34,57 @@ def execute_program(quadruplets, symbolsTable):
 def printConcatenationToConsole(concatenation, symbolsTable):
   # Get array of strings and variables to print.
   for data in concatenation:
+    # Print string
     if re.match(regexString, data):
-      # If data is a string, simply print it.
       stringText = re.sub("\"|\'", "", data)
       print(stringText, end='')
+    # Print an element of a dimensional variable
+    elif ('@' in data):      
+      decodedDimensionalElem = accessDimensionalElement(data, symbolsTable)
+      print(decodedDimensionalElem, end='')
+    # Print a dimensional variable
+    elif (data in symbolsTable) and isTypeDimensional(symbolsTable[data].type):
+      print(symbolsTable[data].value.tolist(), end='')
+    # Print a variable or numeric constant
     else:
-      # If data is a variable, print it's value, 
-      # but first make sure the variable was declared.
-      if data in symbolsTable:
-        print(symbolsTable[data].value, end='')
-      else:
-        raise Exception (f'Console Output Error: variable {data} is not defined')
+      print(getOperandValue(data, symbolsTable), end='')
   # End of line
   print()
+
+# Get value of (operand) from symbolsTable if it's a variable, or return it if it's numeric
+def getOperandValue(operand, symbolsTable):
+  if operand in symbolsTable:
+    return symbolsTable[operand].value
+  else:
+    return operand  
+
+# Get an specific dimensional element from a raw dimensional hash
+def accessDimensionalElement(rawDimensionalHash, symbolsTable, assignValue=None):
+  # Get hash with id and indexes (as an array)
+  dimensionalHash = rawDimensionalHash.split('@')[1:]
+  # Handle array asignation
+  if (len(dimensionalHash) == 2):
+    index = getOperandValue(dimensionalHash[1], symbolsTable)
+    if (assignValue != None):
+      symbolsTable[dimensionalHash[0]].value[index] = assignValue
+    return symbolsTable[dimensionalHash[0]].value[index]
+  # Handle matrix asignation
+  elif (len(dimensionalHash) == 3):
+    index1 = getOperandValue(dimensionalHash[1], symbolsTable)
+    index2 = getOperandValue(dimensionalHash[2], symbolsTable)
+    if (assignValue != None):
+      symbolsTable[dimensionalHash[0]].value[index1, index2] = assignValue
+    return symbolsTable[dimensionalHash[0]].value[index1, index2]
+  # Handle array asignation
+  elif (len(dimensionalHash) == 4):
+    index1 = getOperandValue(dimensionalHash[1], symbolsTable)
+    index2 = getOperandValue(dimensionalHash[2], symbolsTable)
+    index3 = getOperandValue(dimensionalHash[3], symbolsTable)
+    if (assignValue != None):
+      symbolsTable[dimensionalHash[0]].value[index1, index2, index3] = assignValue
+    return symbolsTable[dimensionalHash[0]].value[index1, index2, index3]  
+  else:
+    return None
 
 def executeQuadruplet(quadruplet, program_counter, symbolsTable):
 
@@ -88,11 +126,17 @@ def executeQuadruplet(quadruplet, program_counter, symbolsTable):
   elif quadruplet.key == EQUAL_QUAD:
     storeVarId = quadruplet.operandRight
     valueToStore = quadruplet.operandLeft
-    # If value to store is a variable, we get the value from the symbolsTable
-    if valueToStore in symbolsTable:
-      symbolsTable[storeVarId].value = symbolsTable[valueToStore].value
+    # Will store in a dimensional variable (dimensional hashes include '@')
+    if '@' in storeVarId:
+      # (valueToStore) is a dimensional element (given as a hash)
+      if (isinstance(valueToStore, str)) and ('@' in valueToStore):
+        cleanValueToStore = accessDimensionalElement(valueToStore, symbolsTable)
+      else:
+        cleanValueToStore = getOperandValue(valueToStore, symbolsTable)      
+      accessDimensionalElement(storeVarId, symbolsTable, assignValue=cleanValueToStore)
+    # Will store in a 'simple' variable
     else:
-      symbolsTable[storeVarId].value = valueToStore
+      symbolsTable[storeVarId].value = getOperandValue(valueToStore, symbolsTable)
 
   elif quadruplet.key == GOTOF_QUAD:
     conditionResult = symbolsTable[quadruplet.operandLeft].value
@@ -122,18 +166,16 @@ def executeQuadruplet(quadruplet, program_counter, symbolsTable):
 
 
 def solveOperation(operator, operandLeft, operandRight, symbolsTable):
-  # Get value of (operandLeft) if is a variable, or parse it if its a number
-  if operandLeft in symbolsTable:
-    valOperandLeft = symbolsTable[operandLeft].value
+  # Operand is a dimensional element (given as a hash)
+  if (isinstance(operandLeft, str)) and ('@' in operandLeft):
+    valOperandLeft = accessDimensionalElement(operandLeft, symbolsTable)
   else:
-    valOperandLeft = operandLeft
-
-  # Get value of (operandRight) if is a variable, or parse it if its a number
-  if operandRight in symbolsTable:
-    valOperandRight = symbolsTable[operandRight].value
+    valOperandLeft = getOperandValue(operandLeft, symbolsTable)
+  # Operand is a dimensional element (given as a hash)
+  if (isinstance(operandRight, str)) and ('@' in operandRight):
+    valOperandRight = accessDimensionalElement(operandRight, symbolsTable)
   else:
-    valOperandRight = operandRight  
-
+    valOperandRight = getOperandValue(operandRight, symbolsTable)
 
   # Arithmetic operations
   if operator == '+':
