@@ -66,23 +66,23 @@ def accessDimensionalElement(rawDimensionalHash, symbolsTable, assignValue=None)
   if (len(dimensionalHash) == 2):
     index = getOperandValue(dimensionalHash[1], symbolsTable)
     if (assignValue != None):
-      symbolsTable[dimensionalHash[0]].value[index] = assignValue
-    return symbolsTable[dimensionalHash[0]].value[index]
+      symbolsTable[dimensionalHash[0]].value[(index)] = assignValue
+    return symbolsTable[dimensionalHash[0]].value[(index)]
   # Handle matrix asignation
   elif (len(dimensionalHash) == 3):
     index1 = getOperandValue(dimensionalHash[1], symbolsTable)
     index2 = getOperandValue(dimensionalHash[2], symbolsTable)
     if (assignValue != None):
-      symbolsTable[dimensionalHash[0]].value[index1, index2] = assignValue
-    return symbolsTable[dimensionalHash[0]].value[index1, index2]
+      symbolsTable[dimensionalHash[0]].value[int(index1), int(index2)] = assignValue
+    return symbolsTable[dimensionalHash[0]].value[int(index1), int(index2)]
   # Handle array asignation
   elif (len(dimensionalHash) == 4):
     index1 = getOperandValue(dimensionalHash[1], symbolsTable)
     index2 = getOperandValue(dimensionalHash[2], symbolsTable)
     index3 = getOperandValue(dimensionalHash[3], symbolsTable)
     if (assignValue != None):
-      symbolsTable[dimensionalHash[0]].value[index1, index2, index3] = assignValue
-    return symbolsTable[dimensionalHash[0]].value[index1, index2, index3]  
+      symbolsTable[dimensionalHash[0]].value[int(index1), int(index2), int(index3)] = assignValue
+    return symbolsTable[dimensionalHash[0]].value[int(index1), int(index2), int(index3)]  
   else:
     return None
 

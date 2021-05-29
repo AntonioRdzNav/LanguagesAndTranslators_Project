@@ -1,0 +1,18 @@
+
+# NOTE: CORRECT SYNTAX
+
+PROGRAM Functions_TEST_CORRECT
+
+# Global variables declaration
+DIM i, j, k, input AS WORD
+DIM cubo AS WORD [2, 2, 2]
+
+MAIN:
+
+  i = 0
+  j = 1
+  cubo[i+1][j][0] = 2
+
+  PRINT(cubo)
+
+END .
